@@ -1,0 +1,36 @@
+name: Device without a file
+description: ZHA does not support your device fully. This repo has no file for it.
+title: "Missing: <vendor> <model>"
+labels: [device]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the [xquirks finder](https://jabla.github.io/xquirks/) first: your device may already have a file.
+
+        Some devices are left out for now:
+
+        - lights, locks and fans
+        - some covers and thermostats
+        - features that Zigbee2MQTT builds in its own code
+
+        The answer may be that this one cannot be translated yet.
+  - type: input
+    id: z2m
+    attributes:
+      label: Zigbee2MQTT device page
+      placeholder: https://www.zigbee2mqtt.io/devices/<model>.html
+    validations:
+      required: true
+  - type: input
+    id: fingerprint
+    attributes:
+      label: Manufacturer and model as ZHA shows them
+      placeholder: _TZE204_xxxxxxxx / TS0601
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Device diagnostics
+      description: The device's page > three-dot menu > Download diagnostics. Drop the file here.

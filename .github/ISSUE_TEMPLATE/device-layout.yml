@@ -1,0 +1,32 @@
+name: Device layout
+description: A quirk file from this repo does not fit the endpoints of your device. The integration's notice links here with everything filled in.
+title: "Device layout: <manufacturer> <model>"
+labels: [device layout]
+body:
+  - type: markdown
+    attributes:
+      value: The weekly search reads the device signature below and moves the file's clusters to the endpoints your device has. The signature from the integration's notice holds no name or address of your device. Downloaded diagnostics hold more, such as the network address and attribute values. The search keeps only endpoints and clusters, but the issue shows everything you paste.
+  - type: input
+    id: file
+    attributes:
+      label: Quirk file
+      placeholder: z2m_<vendor>_<model>.py (revision 1a2b3c4d)
+    validations:
+      required: true
+  - type: input
+    id: reason
+    attributes:
+      label: Why it does not fit
+      placeholder: "it has no endpoint 1"
+  - type: input
+    id: ha
+    attributes:
+      label: Home Assistant version
+  - type: textarea
+    id: signature
+    attributes:
+      label: Device signature
+      description: "The signature as the device joined, before any quirk. Without the integration's link: the device's diagnostics (the device's page > three-dot menu > Download diagnostics). The search takes the signature from them. For a device that runs no quirk, Manage Zigbee device > Signature in that menu is enough."
+      render: json
+    validations:
+      required: true
