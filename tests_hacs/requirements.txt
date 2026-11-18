@@ -1,7 +1,7 @@
 # The test harness: Home Assistant's own pytest-homeassistant of the release it tests.
-pytest-homeassistant==2026.11.0
-# Home Assistant's zha integration and its dependencies (usb, homeassistant_hardware, hassio), pinned as in 2026.11.0.
-zha==2.4.2
+pytest-homeassistant==2026.11.2
+# Home Assistant's zha integration and its dependencies (usb, homeassistant_hardware, hassio), pinned as in 2026.11.2.
+zha==2.4.3
 zha-quirks==2.4.1
 aiousbwatcher==1.1.2
 serialx==1.15.1
