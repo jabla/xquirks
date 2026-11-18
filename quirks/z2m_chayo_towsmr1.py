@@ -1,9 +1,9 @@
-"""Tongou TOWSMR1: Single-phase multifunction RCBO (DIN Module).
+"""Chayo TOWSMR1: Single-phase multifunction RCBO (DIN Module).
 
 Generated from the Zigbee2MQTT definition.
 Data: zigbee-herdsman-converters, MIT, Copyright (c) 2018 Koen Kanters.
 Status: generated, not verified on hardware.
-Revision: f75b9d22
+Revision: 590ca706
 """
 
 import functools

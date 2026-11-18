@@ -3,7 +3,7 @@
 Generated from the Zigbee2MQTT definition.
 Data: zigbee-herdsman-converters, MIT, Copyright (c) 2018 Koen Kanters.
 Status: generated, not verified on hardware.
-Revision: c3bab521
+Revision: be5f6722
 """
 
 import functools
@@ -14,7 +14,6 @@ import zhaquirks
 from zha.quirks import DEVICE_REGISTRY, DeviceMatch
 import zigpy.types as t
 from zigpy.zcl import foundation
-from zigpy.zcl.clusters.measurement import OccupancySensing
 
 from zhaquirks.builder import (
     EntityPlatform,
@@ -26,24 +25,14 @@ from zhaquirks.builder import (
 from zhaquirks.tuya import TUYA_CLUSTER_ID
 from zhaquirks.tuya.builder import TuyaQuirkBuilder
 from zhaquirks.tuya.mcu import TuyaMCUCluster
-from zhaquirks.tuya.tuya_motion import TuyaOccupancySensing
 
 
 class BatteryState(t.enum8):
     """battery_state values (z2m)."""
 
     low = 0x00
-    middle = 0x01
+    medium = 0x01
     high = 0x02
-
-
-class MotionState(t.enum8):
-    """motion_state values (z2m)."""
-
-    none = 0x00
-    large = 0x01
-    small = 0x02
-    static = 0x03
 
 
 def _value_error_on_error(converter):
@@ -207,20 +196,13 @@ def no_builtin_quirk(device) -> bool:
     .applies_to('_TZD200_bgjlfsuy', 'TS0202')
     .applies_to('_TZE200_bgjlfsuy', 'TS0202')
     .applies_to(None, 'HS209Z')
-    .tuya_dp(dp_id=1, ep_attribute=TuyaOccupancySensing.ep_attribute, attribute_name=OccupancySensing.AttributeDefs.occupancy.name, converter=_value_error_on_error(lambda x: x == 0))
-    .adds(TuyaOccupancySensing)
-    .prevent_default_entity_creation(endpoint_id=1, cluster_id=OccupancySensing.cluster_id, unique_id_suffix='pir_o_to_u_delay')
-    .prevent_default_entity_creation(endpoint_id=1, cluster_id=OccupancySensing.cluster_id, unique_id_suffix='pir_u_to_o_delay')
     .tuya_dp_attribute(dp_id=3, attribute_name='battery_state', type=BatteryState, access=foundation.ZCLAttributeAccess.Read | foundation.ZCLAttributeAccess.Report, converter=_value_error_on_error(lambda x: BatteryState(int(x))))
-    .enum(attribute_name='battery_state', enum_class=BatteryState, cluster_id=TUYA_CLUSTER_ID, entity_platform=EntityPlatform.SENSOR, entity_type=EntityType.STANDARD, translation_key='battery_state', fallback_name='Battery state')
-    .tuya_battery(dp_id=4, scale=2)
-    .tuya_number(dp_id=12, type=t.uint32_t, attribute_name='pir_delay', min_value=30, max_value=120, step=30, unit=UnitOfTime.SECONDS, device_class=NumberDeviceClass.DURATION, entity_type=EntityType.CONFIG, translation_key='pir_delay', fallback_name='PIR delay')
-    .tuya_number(dp_id=103, type=t.uint32_t, attribute_name='detection_distance', min_value=1, max_value=500, step=1, unit=UnitOfLength.CENTIMETERS, device_class=NumberDeviceClass.DISTANCE, entity_type=EntityType.CONFIG, translation_key='detection_distance', fallback_name='Detection distance')
-    .tuya_number(dp_id=104, type=t.uint32_t, attribute_name='static_sensitivity', min_value=1, max_value=10, step=1, entity_type=EntityType.CONFIG, translation_key='static_sensitivity', fallback_name='Static sensitivity')
-    .tuya_dp_attribute(dp_id=105, attribute_name='motion_state', type=MotionState, access=foundation.ZCLAttributeAccess.Read | foundation.ZCLAttributeAccess.Report, converter=_value_error_on_error(lambda x: MotionState(int(x))))
-    .enum(attribute_name='motion_state', enum_class=MotionState, cluster_id=TUYA_CLUSTER_ID, entity_platform=EntityPlatform.SENSOR, entity_type=EntityType.STANDARD, translation_key='motion_state', fallback_name='Motion state')
+    .enum(attribute_name='battery_state', enum_class=BatteryState, cluster_id=TUYA_CLUSTER_ID, entity_platform=EntityPlatform.SENSOR, entity_type=EntityType.DIAGNOSTIC, translation_key='battery_state', fallback_name='Battery state')
+    .tuya_number(dp_id=12, type=t.uint32_t, attribute_name='pir_delay', min_value=30, max_value=28800, step=30, unit=UnitOfTime.SECONDS, device_class=NumberDeviceClass.DURATION, entity_type=EntityType.CONFIG, translation_key='pir_delay', fallback_name='PIR delay')
+    .tuya_number(dp_id=103, type=t.uint32_t, attribute_name='detection_distance', min_value=1, max_value=500, unit=UnitOfLength.CENTIMETERS, device_class=NumberDeviceClass.DISTANCE, entity_type=EntityType.CONFIG, translation_key='detection_distance', fallback_name='Detection distance')
+    .tuya_number(dp_id=104, type=t.uint32_t, attribute_name='static_sensitivity', min_value=1, max_value=10, entity_type=EntityType.CONFIG, translation_key='static_sensitivity', fallback_name='Static sensitivity')
+    .tuya_number(dp_id=123, type=t.uint32_t, attribute_name='detection_sensitivity', min_value=1, max_value=10, entity_type=EntityType.CONFIG, translation_key='detection_sensitivity', fallback_name='Detection sensitivity')
     .tuya_switch(dp_id=107, attribute_name='indicator', entity_type=EntityType.CONFIG, translation_key='indicator', fallback_name='Indicator')
-    .tuya_number(dp_id=123, type=t.uint32_t, attribute_name='detection_sensitivity', min_value=1, max_value=10, step=1, entity_type=EntityType.CONFIG, translation_key='detection_sensitivity', fallback_name='Detection sensitivity')
     .filter(no_builtin_quirk)
     .add_to_registry(replacement_cluster=TypedTuyaCluster)
 )

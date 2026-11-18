@@ -1,9 +1,9 @@
-"""Excellux ZG-109TDS: Probe Temperature with EC && TDS && Salinity && SG && ht(humidity and temperature) Sensor.
+"""Excellux ZG-109TDS: Water Quality Probe with Temperature, EC, TDS, Salinity, SG, and Air Humidity + Temperature Sensor.
 
 Generated from the Zigbee2MQTT definition.
 Data: zigbee-herdsman-converters, MIT, Copyright (c) 2018 Koen Kanters.
 Status: generated, not verified on hardware.
-Revision: 30e4ebc3
+Revision: d64c3971
 """
 
 import functools
