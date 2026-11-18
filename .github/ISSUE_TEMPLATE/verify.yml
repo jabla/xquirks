@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for testing. The easiest way is **Check a device** in Home Assistant (Settings > Devices & services > xquirks > Configure): it asks the device for its values, you mark what matches the device, then it opens this form filled in. Its report names no address and none of the names you gave. Without the integration, run the probe (see [CONTRIBUTING.md, "A device test"](https://github.com/jabla/xquirks/blob/main/CONTRIBUTING.md#a-device-test-verified)), tick the values in `probe-report/report.md` that match the device (its display, its app or what it does), then attach `report.md` and `diagnostics.json` below. The probe removes IEEE addresses. Check everything for anything else you do not want to share.
+        Thanks for testing. The easiest way is **Check the device now** in the xquirks notice or **Check a device** in Home Assistant (Settings > Devices & services > xquirks > Configure): it asks the device for its values, you mark what matches the device, then it opens this form filled in. Its report names no address and none of the names you gave. Without the integration, run the probe (see [CONTRIBUTING.md, "A device test"](https://github.com/jabla/xquirks/blob/main/CONTRIBUTING.md#a-device-test-verified)), tick the values in `probe-report/report.md` that match the device (its display, its app or what it does), then attach `report.md` and `diagnostics.json` below. The probe removes IEEE addresses. Check everything for anything else you do not want to share.
   - type: input
     id: file
     attributes:
@@ -29,6 +29,12 @@ body:
       placeholder: "2026.10.3"
     validations:
       required: true
+  - type: input
+    id: variant
+    attributes:
+      label: Device variant
+      description: The device check of the xquirks integration fills this in with the end of the title (manufacturer, model, firmware and the quirk file's key). Without the integration, leave it empty.
+      placeholder: "[_TZE200_abcd1234 | TS0601 | 0x00000046 | 1a2b3c4d]"
   - type: textarea
     id: report
     attributes:

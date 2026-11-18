@@ -10,6 +10,7 @@ import json
 from collections.abc import Callable, Mapping
 from urllib.parse import quote, urlencode
 
+from . import confirm
 from . import plan as plans
 from .changes import LIMIT, Summary, plain
 from .const import REPOSITORY
@@ -20,6 +21,14 @@ UPSTREAM_PR = "https://github.com/zigpy/zha-device-handlers/pull/{number}"
 # A new issue in the xquirks repository through its "Device layout" form
 # (.github/ISSUE_TEMPLATE/device-layout.yml): GitHub fills the form's fields from the query by their ids.
 REPORT = f"https://github.com/{REPOSITORY}/issues/new"
+# An issue of the xquirks repository, by its number (an int from the confirmation search: confirm.py).
+ISSUE = f"https://github.com/{REPOSITORY}/issues/{{number}}"
+# GitHub's issue list of the xquirks repository, searched for the open reports of a notice (reports_url).
+REPORTS = f"https://github.com/{REPOSITORY}/issues"
+# The longest phrase a reports link searches for: a quirk file name is far shorter (content.FILE_NAME).
+SEARCH_TERM_LIMIT = 100
+# The words the reports link of the Tuya check notice searches for: that notice's title names no file.
+TUYA_REPORTS = "Tuya quirk files on hold"
 REPORT_FORM = "device-layout.yml"
 # GitHub answers a longer address with 414: past this the signature leaves its output clusters out,
 # then gives way to a note.
@@ -185,6 +194,16 @@ def misfit_list(misfit: Misfit, devices: dict[str, Device], links: Mapping[str, 
     return "\n".join(lines) or "- no device"
 
 
+def reports_url(term: str) -> str:
+    """GitHub's search for the open issues of the xquirks repository that name a term (a quirk file's name): the reports
+    filed already, where a thumbs-up or a comment says "me too". Built here from the repository and the term alone, no
+    device data. The term is one exact phrase: its quotes and characters that do not print are dropped, it is cut to
+    SEARCH_TERM_LIMIT characters. The whole query is percent-encoded: the link stays one markdown link."""
+    phrase = "".join(char for char in term if char != '"' and char.isprintable())[:SEARCH_TERM_LIMIT].strip()
+    query = urlencode({"q": f'is:issue is:open "{phrase}"'}, quote_via=quote, safe="")
+    return f"{REPORTS}?{query}"
+
+
 def name_list(names: list[str]) -> str:
     return "\n".join(f"- {name}" for name in names) or "- nothing"
 
@@ -318,6 +337,9 @@ def change_list(
 # user found nothing wrong, "Wrong or missing value" otherwise. GitHub fills their fields by id.
 VERIFY_FORM = "verify.yml"
 PROBLEM_FORM = "wrong-value.yml"
+# The field of the device test form that holds the fixed part of its title (confirm.fixed_part): a tool reads the variant
+# from it by this id.
+VARIANT_FIELD = "variant"
 CHECK_TOO_LONG = ("Too long for the link. Download the diagnostics of the xquirks integration (Settings > Devices & services > xquirks >"
                   " three-dot menu > Download diagnostics) and drop the file here: the report is in it under device_checks.")
 # Findings a self-check's link carries at most (a self-check keeps at most 20 per device).
@@ -411,19 +433,29 @@ def _device_name(entry: dict | None, manufacturer: str, model: str) -> str:
     return f"{entry['vendor']} {entry['model']}" if entry else f"{manufacturer} {model}"
 
 
-def check_url(entry: dict | None, result, answers: Mapping[str, str], version: str) -> str:
+def issue_url(number: int) -> str:
+    """The link to an issue of the xquirks repository, built from its number alone."""
+    return ISSUE.format(number=int(number))
+
+
+def check_url(entry: dict | None, result, answers: Mapping[str, str], version: str, key: str | None = None) -> str:
     """The issue a device check goes to, filled in: "Device test" with the report when the user marked
     nothing as wrong, "Wrong or missing value" with the wrong entities and the report otherwise. Past
     REPORT_LIMIT the report drops columns, then gives way to a note on the diagnostics, then the last
-    wrong entities are counted instead of listed."""
+    wrong entities are counted instead of listed. The device test's title ends with the fixed part of the
+    device's variant (confirm.title: manufacturer and model as zigpy reports them, the firmware, the file's
+    key) that the confirmation search compares, its field VARIANT_FIELD holds that fixed part alone (the same
+    confirm.fixed_part). Without a valid key: the readable part alone, no variant."""
     name = _device_name(entry, result.manufacturer, result.model)
+    variant = confirm.fixed_part(result.manufacturer, result.model, result.firmware, key) if key is not None else None
+    verify = confirm.title(name, result.manufacturer, result.model, result.firmware, key) if key is not None and variant is not None else None
     base = {"file": f"quirks/{result.file}", "revision": result.revision or "unknown", "ha": version}
     wrong = [f"- {_cell(row.name)}: Home Assistant shows {_cell(row.value) or 'nothing'}, the device shows something else"
              for row in result.rows if answers.get(row.suffix) == "no"]
 
     def link(report: str, listed: int) -> str:
         if not wrong:
-            return _issue(VERIFY_FORM, f"Verify: {name}", {**base, "report": report})
+            return _issue(VERIFY_FORM, verify or f"Verify: {name}", {**base, "report": report, **({VARIANT_FIELD: variant} if verify and variant else {})})
         more = [f"- and {len(wrong) - listed} more (all of them in the report)"] if listed < len(wrong) else []
         return _issue(PROBLEM_FORM, f"{name}: ", {**base, "problem": "\n".join(wrong[:listed] + more), "diagnostics": report})
 

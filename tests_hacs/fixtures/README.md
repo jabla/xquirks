@@ -26,3 +26,6 @@ file only when the guard stops accepting it, for example in the pull request tha
   with endpoints, a Tuya file, alias files, a take-over, a refused take-over, a device not built,
   open upstream pull requests, a new file whose picture is not pinned yet), each file with its risk.
   Replace them with current entries of the same kinds when the manifest changes its fields.
+- `key` in each entry of `manifest-kinds.json` with a file: the key of that entry's own file version (CONTENT.md).
+  The text of the frozen `hysyiot_hs206z` version is gone: that entry has the revision, sha256 and key of a later
+  version.

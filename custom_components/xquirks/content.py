@@ -10,6 +10,7 @@ import re
 import tomllib
 from pathlib import PurePosixPath
 
+from .confirm import valid_key, valid_threshold
 from .guard import endpoint_map, friendly_pair, inherit_pairs
 
 # Every shipped file sits directly in quirks/ under a name ZHA imports as a module.
@@ -89,6 +90,11 @@ class ContentState:
     withdrawn: dict[tuple[str, str], str] = dataclasses.field(default_factory=dict)
     # The commit the tag points to: files are read there. None for the empty state.
     commit: str | None = None
+    # File name -> the key its manifest entry states (8 lowercase hex digits, the "verify" issue titles name it). A
+    # file whose entry states none or one of another shape has none: it is asked as without one.
+    keys: dict[str, str] = dataclasses.field(default_factory=dict)
+    # The confirmation threshold content.json states (confirm.valid_threshold); None without a valid one.
+    confirm_threshold: int | None = None
 
     @property
     def sources(self) -> dict[str, str]:
@@ -248,6 +254,13 @@ def parse_guard(text: str) -> str | None:
     return value if isinstance(value, str) and HEX64.fullmatch(value) else None
 
 
+def parse_threshold(text: str) -> int | None:
+    """The confirmation threshold content.json states; None when it states none or one of another shape
+    (confirm.valid_threshold)."""
+    value = json.loads(text)
+    return valid_threshold(value.get("confirm_threshold")) if isinstance(value, dict) else None
+
+
 def _withdrawn_item(name: object, rev: object, reason: object) -> bool:
     return isinstance(name, str) and FILE_NAME.fullmatch(name) is not None and isinstance(rev, str) and HEX8.fullmatch(rev) is not None and isinstance(reason, str)
 
@@ -283,22 +296,26 @@ def from_withdrawn_rows(rows: object) -> dict[tuple[str, str], str]:
 
 
 def from_manifest(
-    manifest: object, *, tag: str, content: int, homeassistant: str | None, withdrawn: dict[tuple[str, str], str], commit: str | None = None
+    manifest: object, *, tag: str, content: int, homeassistant: str | None, withdrawn: dict[tuple[str, str], str], commit: str | None = None,
+    confirm_threshold: object = None,
 ) -> ContentState:
     """A content state of the repository: hashes and revisions as its manifest states them.
 
     Every entry is checked for the fields this integration reads: a malformed manifest is never
-    taken (or kept), so the plan, the notices and the dialogs can rely on them."""
+    taken (or kept), so the plan, the notices and the dialogs can rely on them. Only the keys and the
+    threshold are taken as they come: one of another shape is none (the notices ask as without it)."""
     if not isinstance(manifest, dict):
         raise BadContent("manifest.json is not an object")
     if not _nests(manifest, MAX_NESTING):
         raise BadContent(f"manifest.json nests deeper than {MAX_NESTING} levels")
     for slug, entry in manifest.items():
         check_entry(slug, entry)
-    shas, paths, revisions = {}, {}, {}
+    shas, paths, revisions, keys = {}, {}, {}, {}
     for name, (path, entry) in shipped_entries(manifest).items():
         sha, rev = entry.get("sha256"), entry.get("revision")
         if not isinstance(sha, str) or not HEX64.fullmatch(sha) or not isinstance(rev, str) or not HEX8.fullmatch(rev):
             raise BadContent(f"manifest entry for {name} lacks its sha256 or revision")
         shas[name], paths[name], revisions[name] = sha, str(path), rev
-    return ContentState(manifest, shas, paths, revisions, content, tag, homeassistant, withdrawn, commit)
+        if valid_key(key := entry.get("key")):
+            keys[name] = key
+    return ContentState(manifest, shas, paths, revisions, content, tag, homeassistant, withdrawn, commit, keys, valid_threshold(confirm_threshold))

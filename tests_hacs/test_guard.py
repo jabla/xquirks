@@ -21,7 +21,7 @@ from homeassistant.util import dt as dt_util
 
 from . import integration
 from .conftest import GUARD_ID, MANIFEST, REPOS, Zha, apply_list, continue_fix, issue_of, issues_of, listed, offered, our_issues, quirk_text, setup_entry, start_fix, write_repo
-from .integration import DOMAIN, const, content, diagnostics, manager
+from .integration import DOMAIN, const, content, diagnostics, manager, text
 from .integration import plan as plans
 from .test_content import IEEE_A, IEEE_B, NOTHING, OLDER_GENERATED, apply_and_reload, folder_writes, not_now, publish, requested, restart_with, updated_to_2, withdraw
 
@@ -70,7 +70,8 @@ async def test_refused_file_is_never_listed_or_written(hass: HomeAssistant, zha:
     assert listed(hass) == {"remove": [], "update": [], "install": ["z2m_acme_b.py"]}
     issue = issue_of(hass, "refused", "z2m_tuya_a.py")
     assert not issue.is_fixable and issue.severity is ir.IssueSeverity.ERROR
-    assert issue.translation_placeholders == {"file": "z2m_tuya_a.py", "quirk": "Tuya A", "revision": content.effective_revision(bad)}
+    assert issue.translation_placeholders == {"file": "z2m_tuya_a.py", "quirk": "Tuya A", "revision": content.effective_revision(bad),
+                                              "reports": text.reports_url("z2m_tuya_a.py")}
     assert list(quirks_dir.iterdir()) == []
     data = await diagnostics.async_get_config_entry_diagnostics(hass, entry)
     refused = data["refused_by_the_guard"]["z2m_tuya_a.py"]

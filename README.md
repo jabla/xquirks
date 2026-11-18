@@ -73,13 +73,16 @@ the request and show its settings only when it next reports.
 
 For a day after that, it watches what these devices send: values outside a plausible range, values
 that never come, Tuya datapoints the file does not show. It only listens, it asks the devices nothing.
-Then one notice per file says whether its values look off, look fine or did not come at all. Nothing
-leaves your Home Assistant by itself.
+Then one notice per file says whether its values look off, look fine or did not come at all. After a
+firmware update, it watches that device for another day unless its file is verified. A notice leaves
+out devices whose variant enough people confirmed. Apart from the search for confirmations (below),
+nothing leaves your Home Assistant by itself.
 
 **Check a device** under Settings > Devices & services > xquirks > Configure asks one device for its
 current values. You mark which match the device. The last dialog opens the "Device test" form on
-GitHub filled in with the report, which names no address and none of the names you gave. That is
-how a file becomes verified.
+GitHub filled in with the report, which names no address and none of the names you gave. The notice
+offers the same check. When a test of the same device and firmware is on GitHub already, its last
+dialog links that issue for a thumbs-up. That is how a file becomes verified.
 
 To keep a device out, add it under Settings > Devices & services > xquirks > Configure > What xquirks
 offers. A file
@@ -103,7 +106,9 @@ Entities only an xquirks file added stay as unavailable. Delete them on the devi
 
 ## What it fetches
 
-- `api.github.com`: the list of `content-<n>` tags, at each check.
+- `api.github.com`: the list of `content-<n>` tags, at each check. And GitHub's issue search for the
+  open "Device test" issues of a file, when its day of watching ends and when you open the notice that
+  follows. It names only the file's key (8 hex digits) and carries no token.
 - `raw.githubusercontent.com`: the small files of a tag, plus a quirk file the change list would
   write, always at the tag's commit.
 - `www.zigbee2mqtt.io`: each device picture once. Your browser contacts it only when you click a

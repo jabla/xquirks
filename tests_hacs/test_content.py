@@ -47,7 +47,7 @@ from .conftest import (
     tag_files,
     write_repo,
 )
-from .integration import DOMAIN, const, diagnostics, manager
+from .integration import DOMAIN, const, diagnostics, manager, text
 from .integration import content as integration_content
 from .integration import plan as plans
 
@@ -186,6 +186,7 @@ async def test_file_with_another_sha256_is_not_written(hass: HomeAssistant, zha:
     assert listed(hass) == {"remove": [], "update": [], "install": ["z2m_acme_b.py"]}
     notice = issue_of(hass, "unavailable", "z2m_tuya_a.py")
     assert not notice.is_fixable and "does not have the sha256 its manifest states" in notice.translation_placeholders["error"]
+    assert notice.translation_placeholders["reports"] == text.reports_url("z2m_tuya_a.py")
     # Neither refused by the guard (it never saw the bytes) nor waiting for another try.
     assert issues_of(hass, "refused") == issues_of(hass, "download_waiting") == []
     data = await diagnostics.async_get_config_entry_diagnostics(hass, entry)

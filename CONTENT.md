@@ -18,7 +18,7 @@ finder read them. This describes format 1. "Release" below means a release of th
 | --- | --- |
 | `quirks/z2m_<name>.py` | the quirk files: exactly those `manifest.json` names |
 | `manifest.json` | one entry per device (below) |
-| `content.json` | `{"guard": "<64 hex digits>"}`: the guard the files were built for (below) |
+| `content.json` | `{"guard": "<64 hex digits>", "confirm_threshold": <n>}`: the guard the files were built for and the confirmation threshold (below) |
 | `hacs.json` | `"homeassistant"`: the Home Assistant release the files need (below) |
 | `data/withdrawn.toml` | revisions that turned out wrong (below) |
 | `state.json` | `{"content": <n>, "date": "YYYY-MM-DD", "format": <FORMAT>}`: the tag's number, the date the files were generated (UTC) and the format, for the finder |
@@ -32,6 +32,14 @@ code the guard compares every statement of a quirk file against. A release takes
 names its own guard, so it never reads a format it does not know and never checks files against
 fixed code it does not ship. `FORMAT` rises when a change to these files would make an older release
 misread them. A new field does not raise it: readers ignore fields they do not know.
+
+## Confirmation threshold
+
+`"confirm_threshold"` in `content.json` is an integer from 1 to 1000. From this number of
+confirmations on, the integration's notices no longer ask for a check of that device variant (a
+notice that values look off still comes). Only the oldest open "Device test" issue whose title ends
+with the same manufacturer, model, firmware and key counts: its author plus its thumbs-ups. Without
+a valid value there is no threshold: the notices ask for every device.
 
 ## Home Assistant release
 
@@ -58,6 +66,13 @@ manufacturer or null, unless that exact pair is in `claimed_elsewhere`.
 An entry with a file also has:
 
 - `sha256` (64 hex digits) and `revision` (8 hex digits, the file's `Revision:` line)
+- `key` (8 lowercase hex digits): names what the file does to a device. It is the first 8 hex
+  digits of the SHA-256 of the file's text with `\n` line ends, without its texts and names: the
+  module docstring, the `.applies_to(...)` calls, the values of `FINGERPRINTS` and
+  `CLAIMED_ELSEWHERE`, the names of an alias file with one group and the names in the builder call
+  (a line left blank by that goes too). A new description, status line or manufacturer name keeps
+  the key. Any other change gives a new one. "Device test" issue titles name it. A file is verified
+  for one key.
 - `vendor`, `model`, `description` (optional)
 - `picture` and `picture_sha256` (optional): a picture without its sha256 is not shown
 - `upstream_open_prs` (optional): `[{"number": <n>, "title": ..., "author": ...}]`, open

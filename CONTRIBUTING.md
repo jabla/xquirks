@@ -5,7 +5,8 @@ are generated from the Zigbee2MQTT device library, so nobody edits them by hand:
 corrections, which reach you with a later state of the files.
 
 Reports go through the issue forms of this repository. The finder and the integration open them
-prefilled.
+prefilled. Before you open one, look at the open issues of the file: the integration's notices link
+them. If one fits, a thumbs-up or a comment there is enough.
 
 ## A wrong or missing value
 
@@ -32,7 +33,18 @@ When a value does not match, it opens the "Wrong or missing value" form instead.
 address, no device or room name and no entity id. It is also in the integration's diagnostics.
 
 About a day after the integration installed or updated a file, a notice says whether its values look
-plausible. When something looks off, it links the "Wrong or missing value" form.
+plausible. A device that gets new firmware is watched for another day. The notice leads through the
+same check. When something looks off, it also links the "Wrong or missing value" form.
+
+One "Device test" issue collects the tests of one device variant. Its title starts with "Verify:" and
+ends with the manufacturer and model as zigpy reports them, the firmware and the file's key, for
+example `[_TZE200_abcd1234 | TS0601 | 0x00000046 | 1a2b3c4d]`. The first person whose values all match
+opens the prefilled form. Everyone after that gives the oldest open issue of the variant a thumbs-up:
+the notice's last dialog links it. The author and each thumbs-up count as one confirmation. Once a
+variant has enough of them ([CONTENT.md](CONTENT.md#confirmation-threshold)), the integration's
+notices no longer ask for a check of its devices. The file can then become "verified". An issue I do
+not accept, for example a test of another device, I close as "not planned": a closed issue counts for
+nothing.
 
 `tools/probe.py` collects what a device test needs from a shell, also without the integration. It can
 also check a setting by writing it. Run it from a clone of this repository. It needs Python's standard

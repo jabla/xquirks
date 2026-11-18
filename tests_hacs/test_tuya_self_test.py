@@ -15,7 +15,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 
 from .conftest import MANIFEST, Zha, apply_list, issue_of, issues_of, listed, manager_of, setup_entry, write_repo
-from .integration import diagnostics, guard, manager, typed_tuya
+from .integration import diagnostics, guard, manager, text, typed_tuya
 from .test_content import restart_with
 from .test_guard_files import FROZEN, TUYA, frozen
 
@@ -252,7 +252,8 @@ async def test_while_it_fails_no_tuya_file_is_installed_and_one_notice_says_why(
     assert listed(hass)["install"] == ["z2m_acme_c.py"]
     assert issues_of(hass, "refused") == []
     issue = issue_of(hass, manager.TUYA_CHECK)
-    assert issue.severity == "error" and issue.translation_placeholders == {"reason": FAILURE, "files": "- `z2m_tuya_ts0105.py` (Tuya TS0105: 3 gang switch)"}
+    assert issue.severity == "error" and issue.translation_placeholders == {"reason": FAILURE, "files": "- `z2m_tuya_ts0105.py` (Tuya TS0105: 3 gang switch)",
+                                                                            "reports": text.reports_url(text.TUYA_REPORTS)}
     errors = [record.getMessage() for record in caplog.records if record.levelno == logging.ERROR and "self-test" in record.getMessage()]
     assert errors == [f"The typed Tuya cluster of the Tuya quirk files fails its self-test on this zhaquirks, so no Tuya file is installed or updated: {FAILURE}"]
     # The one error says it: no warning per file in the words of the guard's security refusals.

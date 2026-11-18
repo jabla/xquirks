@@ -8,6 +8,7 @@ same with a real quirk file on a zigpy device and a ZHA device built from it.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import logging
 import subprocess
 import sys
@@ -288,7 +289,7 @@ async def test_a_tuya_file_that_reads_wrong_gets_a_looks_off_notice(hass: HomeAs
         "    - sensor: Humidity: no value from the device, although it answered the data query",
         "    - sent Tuya datapoints this file does not show: 101",
     ]
-    assert issue.is_persistent and not issue.is_fixable
+    assert issue.is_persistent and issue.is_fixable
     fields = link_fields(placeholders["link"])
     assert fields["template"] == text.PROBLEM_FORM and set(fields) - {"template", "title"} <= form_ids(text.PROBLEM_FORM)
     assert fields["title"] == "Tuya A: " and fields["file"] == "quirks/z2m_tuya_a.py"
@@ -654,7 +655,7 @@ async def test_a_file_none_of_whose_values_came_is_not_called_plausible(hass: Ho
     assert issues_of(hass, "self_check_off") == issues_of(hass, "self_check_fine") == []
     (issue,) = issues_of(hass, "self_check_unproven")
     assert issue.translation_placeholders["devices"].splitlines()[1:] == expected
-    assert "link" not in issue.translation_placeholders and issue.is_persistent and not issue.is_fixable
+    assert "link" not in issue.translation_placeholders and issue.is_persistent and issue.is_fixable
     assert list(manager_of(hass).summary()["self_check"].values())[0]["result"] == "unproven"
 
 
@@ -912,7 +913,7 @@ async def test_a_zcl_device_check_reads_the_files_attributes_from_the_device(has
     assert device.clusters[0x0402].reads == [(["measured_value"], False)]
     assert device.clusters[0xFC00].reads == device.clusters[0x0000].reads == []
     shown = result["description_placeholders"]["entities"]
-    assert "Asked the device: read of 1 attributes, it answered." in shown
+    assert "Asked the device: read of 1 attribute, it answered." in shown
     assert [option["value"] for option in result["data_schema"].schema["matches"].config["options"]] == ["1-mode", "1-temperature"]
     result = check_texts(await hass.config_entries.options.async_configure(result["flow_id"], {"matches": ["1-temperature"]}))
     report = link_fields(result["description_placeholders"]["link"])["report"]
@@ -975,7 +976,7 @@ async def test_the_answer_to_a_read_counts_as_it_came(hass: HomeAssistant, zha: 
     assert added.reads == [(["measured_value"], False)]
     assert not result["errors"]
     shown = result["description_placeholders"]["entities"]
-    assert "Asked the device: read of 1 attributes, it answered." in shown
+    assert "Asked the device: read of 1 attribute, it answered." in shown
     row = next(line for line in shown.splitlines() if line.startswith("| sensor: Measured value |"))
     assert row.endswith(f"| stored | {checks.UNSUPPORTED} |" if answer == "unsupported" else "| now |  |"), row
 
@@ -1025,7 +1026,7 @@ async def test_a_device_check_asks_for_no_buttons_attribute_and_remarks_nothing_
     result = await run_check(hass, entry, device.device_id)
     assert added.reads == [(["measured_value"], False)]
     shown = result["description_placeholders"]["entities"]
-    assert "Asked the device: read of 1 attributes, it answered." in shown
+    assert "Asked the device: read of 1 attribute, it answered." in shown
     rows = {line.split(" | ")[0]: line for line in shown.splitlines() if line.startswith("| button:") or line.startswith("| sensor:")}
     assert rows["| button: Self test"].endswith("| unknown |  | stored |  |"), rows
     assert rows["| sensor: Measured value"].endswith("| now |  |"), rows
@@ -1058,9 +1059,21 @@ async def test_a_device_that_never_answers_a_read_ends_the_check_in_time(hass: H
     device.clusters[0x0402].read_attributes = never
     with patch.object(checks, "CHECK_ASK", 0.1), patch.object(checks, "CHECK_WAIT", 0.2), patch.object(checks, "CHECK_STEP", 0.05):
         result = await asyncio.wait_for(manager_of(hass).checks.async_run_check(device.device_id), 3)
-    assert (result.asked, result.answer, result.answered) == ("read of 1 attributes", "stopped waiting after 0.1 s", False)
+    assert (result.asked, result.answer, result.answered) == ("read of 1 attribute", "stopped waiting after 0.1 s", False)
     assert checks.CHECK_ASK + checks.CHECK_WAIT <= 30
     assert "half a minute" in STRINGS["options"]["progress"]["asking"]
+
+
+async def test_the_read_names_one_attribute_in_the_singular(hass: HomeAssistant, zha: Zha, repo_dir: Path):
+    """"read of 1 attribute", "read of 2 attributes": the word follows the count."""
+    device = acme(hass, zha)
+    await installed(hass, zha, repo_dir, {IEEE_C: ACME_C})
+    checks_ = manager_of(hass).checks
+    assert checks_._reads(device.device_id)[0] == "read of 1 attribute"
+    specs = checks_._specs[device.device_id]
+    (spec,) = [spec for found in specs.values() for spec in found if spec.attribute == "measured_value"]
+    specs.setdefault("second", []).append(dataclasses.replace(spec, attribute="tolerance"))
+    assert checks_._reads(device.device_id)[0] == "read of 2 attributes"
 
 
 @pytest.mark.parametrize("kind", ["tuya", "zcl"])

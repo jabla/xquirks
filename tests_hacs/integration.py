@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = f"custom_components.{FOLDER.name}"
 
 attribute_types = importlib.import_module(f"{PACKAGE}.attribute_types")
+confirm = importlib.import_module(f"{PACKAGE}.confirm")
 const = importlib.import_module(f"{PACKAGE}.const")
 content = importlib.import_module(f"{PACKAGE}.content")
 diagnostics = importlib.import_module(f"{PACKAGE}.diagnostics")
