@@ -354,6 +354,18 @@ def test_each_hold_has_a_text_of_its_own():
             assert [held for held, text in texts.items() if phrase[index] in text] == [reason], (language, reason)
 
 
+def test_the_texts_after_apply_all_promise_only_notices_that_can_come():
+    """A verified file gets a notice after its day only when its values look off. A file not verified yet may get one
+    that asks for a device test. No text promises every file a notice whether its values look plausible."""
+    # Per language: what it calls looking off and a device test, and the word for plausible.
+    words = {"en": ("look off", "device test", "plausible"), "de": ("auffällig", "Gerätetest", "plausibel")}
+    folder = Path(__file__).resolve().parents[1] / "custom_components" / DOMAIN / "translations"
+    for language, (off, device_test, plausible) in words.items():
+        abort = json.loads((folder / f"{language}.json").read_text())["issues"]["changes"]["fix_flow"]["abort"]
+        for reason in ("done", "done_zha_not_loaded"):
+            assert off in abort[reason] and device_test in abort[reason] and plausible not in abort[reason], (language, reason)
+
+
 async def test_a_failed_step_undoes_the_steps_before_it(hass: HomeAssistant, zha: Zha, repo_dir: Path, quirks_dir: Path, hass_storage):
     zha.add_device(IEEE_A, "_TZE200_aaaa", "TS0601")
     zha.add_device(IEEE_B, "Anyone", "B-1")

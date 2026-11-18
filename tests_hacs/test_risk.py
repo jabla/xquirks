@@ -3,16 +3,19 @@ files held back until the options offer them."""
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 
 from .conftest import MANIFEST, REPOS, STRINGS, Zha, apply_list, issue_of, issues_of, listed, quirk_text, render, setup_entry, start_fix, write_repo
-from .integration import DOMAIN, const, content, text
+from .integration import DOMAIN, const, content, pictures, text
 from .integration import plan as plans
 from .test_content import requested
+from .test_pictures import png, stored
 
 IEEE_A = "00:11:22:33:44:55:66:01"
 NOTHING = {"remove": [], "update": [], "install": []}
@@ -176,3 +179,23 @@ async def test_an_installed_high_risk_file_gets_its_updates(hass: HomeAssistant,
     assert listed(hass) == {**NOTHING, "update": ["z2m_tuya_a.py"]} and issues_of(hass, "held_back") == []
     await apply_list(hass)
     assert (quirks_dir / "z2m_tuya_a.py").read_bytes() == quirk_text("tuya_a", 2)
+
+
+async def test_the_held_back_page_shows_the_picture_of_this_run(hass: HomeAssistant, zha: Zha, repo_dir: Path):
+    """The first page builds the picture of this run (the address of a thumbnail carries a token of each Home Assistant
+    run), never from the notice's placeholder."""
+    picture = png(256, 256)
+    stored(hass, picture).parent.mkdir(parents=True)
+    stored(hass, picture).write_bytes(png(128, 128))
+    high_risk(repo_dir, picture="A.png", picture_sha256=hashlib.sha256(picture).hexdigest())
+    zha.add_device(IEEE_A, "_TZE200_aaaa", "TS0601", "Radar")
+    entry = await setup_entry(hass, repo_dir)
+    before = issue_of(hass, "held_back", "z2m_tuya_a.py").translation_placeholders["picture"]
+    assert before
+    hass.data[pictures.DATA_PICTURES].token = "f" * 32
+    # The notice as an earlier run left it: the refresh of the first page does not renew it.
+    with patch.object(entry.runtime_data, "_sync_issues"):
+        flow = await start_fix(hass, issue_of(hass, "held_back", "z2m_tuya_a.py"))
+    assert issue_of(hass, "held_back", "z2m_tuya_a.py").translation_placeholders["picture"] == before
+    shown = flow["description_placeholders"]["picture"]
+    assert shown == entry.runtime_data.picture("z2m_tuya_a.py") != before and "f" * 32 in shown

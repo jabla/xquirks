@@ -234,7 +234,8 @@ async def test_a_device_check_from_the_notice_closes_it(hass: HomeAssistant, zha
     flow = await ask(hass, flow, {"next_step_id": "check"})
     assert flow["type"] is FlowResultType.MENU and flow["step_id"] == "values", flow
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
-    assert flow["type"] is FlowResultType.ABORT and flow["reason"] == "report"
+    # The last page: one button that opens the form.
+    assert flow["type"] is FlowResultType.FORM and flow["step_id"] == "report" and flow["data_schema"] is None
     assert firmware_notices(hass) == []
     assert watch_of(hass, device)["checked"] is True
     assert manager_of(hass).summary()["firmware_checks"][0]["device_check_done"] is True

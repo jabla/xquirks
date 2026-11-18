@@ -4,27 +4,30 @@ The first page says what the notice found and offers "Check the device now" or "
 search (short timeout) tells whether every device of the notice is past the threshold now: then the notice goes. The
 device check is the options flow's: the device picker (limited to the notice's devices, skipped for one), the query
 with its progress step, the values. Then "All values match" (a thumbs-up on the open issue of the variant, else the
-filled-in form) or "Something does not match" (today's list, then the problem report). No test reaches the network.
+filled-in form) or "Something does not match" (today's list, then the problem report). Each last page has one button that
+opens its link (no Close). No test reaches the network.
 """
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import importlib
+import re
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType, InvalidData
+from homeassistant.data_entry_flow import FlowResultType, InvalidData, UnknownFlow
 from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant.test_util.aiohttp import AiohttpClientMockResponse
 from yarl import URL
 
 from . import integration
 from .conftest import REPOS, STRINGS, Zha, continue_fix, issue_of, issues_of, manager_of, start_fix
-from .integration import confirm, const, diagnostics
+from .integration import confirm, const, diagnostics, pictures
 from .test_checks import ACME_C, IEEE_A, IEEE_C, NAME, TUYA_A, LiveDevice, acme, checks, conclude, form_ids, installed, link_fields, radar, run_check, text
 from .test_confirm_search import (
     FIRMWARE_A,
@@ -48,6 +51,7 @@ from .test_confirm_search import (
     title,
 )
 from .test_content import restart_with
+from .test_pictures import png, stored
 
 repairs = importlib.import_module(f"{integration.PACKAGE}.repairs")
 
@@ -55,6 +59,8 @@ FINE, OFF, UNPROVEN = checks.FINE, checks.OFF, checks.UNPROVEN
 ISSUE_LINK = f"https://github.com/{const.REPOSITORY}/issues/{{number}}"
 # Steps and aborts every kind shares (the first page differs).
 FIRST = "confirm"
+# The pages a device check ends with: one button each, which opens a link.
+LAST_PAGES = ("report", "report_wrong", "thumbs_up")
 
 
 class Search:
@@ -129,6 +135,21 @@ async def values_page(hass: HomeAssistant, kind: str = FINE) -> dict:
     return flow
 
 
+async def click(hass: HomeAssistant, flow: dict, step: str) -> str:
+    """The last page: a page without fields whose one button (its own text: Home Assistant shows no Close on it) opens
+    the link in the browser (an external step, it stays there until the dialog is closed). The link."""
+    assert flow["type"] is FlowResultType.FORM and flow["step_id"] == step and flow["data_schema"] is None, flow
+    assert STRINGS["issues"][flow["kind"]]["fix_flow"]["step"][step]["submit"]
+    opened = await continue_fix(hass, flow, {})
+    assert opened["type"] is FlowResultType.EXTERNAL_STEP and opened["step_id"] == "open", opened
+    return opened["url"]
+
+
+def last_page(flow: dict) -> str | None:
+    """The step id of a last page (None for any other result)."""
+    return flow["step_id"] if flow["type"] is FlowResultType.FORM and flow["data_schema"] is None else None
+
+
 def gone(hass: HomeAssistant, kind: str = FINE) -> bool:
     return issues_of(hass, kind) == []
 
@@ -166,6 +187,28 @@ async def test_the_first_page_says_what_the_notice_found_and_offers_the_check(ha
     assert "all_match" not in strings["menu_options"] and "All values match" not in strings["description"]
     # Nothing changed by opening it.
     assert issue_of(hass, kind)
+
+
+@pytest.mark.parametrize("kind", [FINE, OFF])
+async def test_the_first_page_shows_the_picture_of_this_run(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, hass_client_no_auth, kind: str):
+    """The notice keeps the picture of the run that made it. The address of a thumbnail carries a token of each Home
+    Assistant run: after a restart the stored one answers 404. The first page builds the picture of this run."""
+    picture = png(256, 256)
+    stored(hass, picture).parent.mkdir(parents=True)
+    stored(hass, picture).write_bytes(png(128, 128))
+    pin = hashlib.sha256(picture).hexdigest()
+    await notice(hass, zha, repo_dir, aioclient_mock, kind, manifest=keyed(tuya_a={"picture": "A.png", "picture_sha256": pin}))
+    before = issue_of(hass, kind).translation_placeholders["picture"]
+    assert pin in before
+    # The token of another run.
+    hass.data[pictures.DATA_PICTURES].token = "f" * 32
+    flow = await start_fix(hass, issue_of(hass, kind))
+    shown = flow["description_placeholders"]["picture"]
+    assert shown == manager_of(hass).picture("z2m_tuya_a.py") != before and "f" * 32 in shown
+    client = await hass_client_no_auth()
+    thumbnail = re.compile(r"!\[\]\((/api/xquirks/picture/[^)]+)\)")
+    assert (await client.get(thumbnail.search(shown).group(1))).status == 200
+    assert (await client.get(thumbnail.search(before).group(1))).status == 404
 
 
 async def test_do_not_check_closes_the_notice_for_this_revision(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock):
@@ -226,9 +269,8 @@ async def test_an_unknown_search_goes_on_as_normal_and_ends_with_the_form(hass: 
     answers(device)
     flow = await values_page(hass)
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
-    assert flow["type"] is FlowResultType.ABORT and flow["reason"] == "report"
-    assert link_fields(flow["description_placeholders"]["link"])["template"] == text.VERIFY_FORM
     assert gone(hass)
+    assert link_fields(await click(hass, flow, "report"))["template"] == text.VERIFY_FORM
 
 
 @pytest.mark.parametrize("thumbs", [2, 0])
@@ -254,8 +296,7 @@ async def test_the_first_page_reads_the_next_search_page(hass: HomeAssistant, zh
     flow = await values_page(hass)
     assert asked == [1, 2]
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
-    assert flow["type"] is FlowResultType.ABORT and flow["reason"] == "thumbs_up"
-    assert flow["description_placeholders"]["link"] == ISSUE_LINK.format(number=57)
+    assert await click(hass, flow, "thumbs_up") == ISSUE_LINK.format(number=57)
 
 
 async def test_the_wait_of_the_first_page_covers_every_search_page(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock):
@@ -280,7 +321,7 @@ async def test_the_wait_of_the_first_page_covers_every_search_page(hass: HomeAss
         flow = await values_page(hass)
     assert asked == [1, 2]
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
-    assert flow["type"] is FlowResultType.ABORT and flow["reason"] == "report"
+    assert last_page(flow) == "report"
     event.set()
     await hass.async_block_till_done(wait_background_tasks=True)
     assert asked == [1, 2]
@@ -298,7 +339,7 @@ async def test_a_slow_search_is_an_unknown_one(hass: HomeAssistant, zha: Zha, re
     assert gate.calls == 1
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
     # The issue the slow answer held is not known: the form.
-    assert flow["type"] is FlowResultType.ABORT and flow["reason"] == "report"
+    assert last_page(flow) == "report"
     await gate.open(hass)
 
 
@@ -348,9 +389,8 @@ async def test_without_a_key_or_threshold_nothing_is_searched(hass: HomeAssistan
     answers(device)
     flow = await values_page(hass)
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
-    assert flow["type"] is FlowResultType.ABORT and flow["reason"] == "report"
     assert search.calls == before
-    fields = link_fields(flow["description_placeholders"]["link"])
+    fields = link_fields(await click(hass, flow, "report"))
     # Without a key the title is the old one, nobody searches for it.
     assert fields["title"] == ("Verify: Tuya A" if key is None else title(FIRMWARE_A))
 
@@ -368,10 +408,9 @@ async def test_one_device_needs_no_picker_and_ends_with_the_form(hass: HomeAssis
     assert placeholders["device"] == NAME and placeholders["file"] == "z2m_tuya_a.py"
     assert "| sensor: Temperature | 1-temperature |  | 21.5 | °C | now |  |" in placeholders["entities"].replace("\\_", "_").replace("\\-", "-")
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
-    assert flow["type"] is FlowResultType.ABORT and flow["reason"] == "report"
     # Every value of the file marked as matching.
-    assert flow["description_placeholders"] | {"link": ""} == {"matches": "3", "wrong": "0", "unchecked": "0", "link": ""}
-    fields = link_fields(flow["description_placeholders"]["link"])
+    assert flow["description_placeholders"] == {"matches": "3", "unchecked": "0"}
+    fields = link_fields(await click(hass, flow, "report"))
     assert fields["template"] == text.VERIFY_FORM and set(fields) - {"template", "title"} <= form_ids(text.VERIFY_FORM)
     assert fields["title"] == title(FIRMWARE_A) == f"Verify: Tuya A [_TZE200_aaaa | TS0601 | {FIRMWARE_A} | {KEY_A}]"
     assert confirm.matches(fields["title"], manager_of(hass).checks.fixed_part(device.device_id, KEY_A))
@@ -390,10 +429,10 @@ async def test_all_values_match_with_an_open_issue_asks_for_a_thumbs_up(hass: Ho
     answers(device)
     flow = await values_page(hass)
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
-    assert flow["type"] is FlowResultType.ABORT and flow["reason"] == "thumbs_up"
-    assert flow["description_placeholders"] == {"link": ISSUE_LINK.format(number=42), "count": "2", "threshold": "3"}
+    assert flow["description_placeholders"] == {"count": "2", "threshold": "3"}
     # Finished like a report: the notice goes for this revision, the report is in the diagnostics.
     assert gone(hass) and len(manager_of(hass).checks.reports) == 1
+    assert await click(hass, flow, "thumbs_up") == ISSUE_LINK.format(number=42)
     assert not await comes_back(hass, repo_dir)
 
 
@@ -411,12 +450,10 @@ async def test_the_state_key_of_the_revision_names_the_search_and_the_form(hass:
     (url,) = searches(aioclient_mock)[before:]
     assert url.query["q"].endswith(f" {NEW_KEY}")
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
-    assert flow["type"] is FlowResultType.ABORT
     if open_issue:
-        assert flow["reason"] == "thumbs_up" and flow["description_placeholders"]["link"] == ISSUE_LINK.format(number=42)
+        assert await click(hass, flow, "thumbs_up") == ISSUE_LINK.format(number=42)
     else:
-        assert flow["reason"] == "report"
-        assert link_fields(flow["description_placeholders"]["link"])["title"] == title(FIRMWARE_A, key=NEW_KEY)
+        assert link_fields(await click(hass, flow, "report"))["title"] == title(FIRMWARE_A, key=NEW_KEY)
 
 
 async def test_several_devices_offer_only_the_notices_devices(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock):
@@ -436,8 +473,8 @@ async def test_several_devices_offer_only_the_notices_devices(hass: HomeAssistan
     assert flow["type"] is FlowResultType.MENU and flow["step_id"] == "values"
     assert flow["description_placeholders"]["device"] == HALL
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
-    assert flow["type"] is FlowResultType.ABORT and flow["reason"] == "thumbs_up"
-    assert flow["description_placeholders"] == {"link": ISSUE_LINK.format(number=9), "count": "1", "threshold": "3"}
+    assert flow["description_placeholders"] == {"count": "1", "threshold": "3"}
+    assert await click(hass, flow, "thumbs_up") == ISSUE_LINK.format(number=9)
 
 
 async def test_a_device_past_the_threshold_at_the_end_of_the_day_is_not_offered(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock):
@@ -487,9 +524,8 @@ async def test_something_does_not_match_leads_to_the_list_and_the_problem_report
     flow = await continue_fix(hass, flow, {"matches": ["1-temperature"], "wrong": ["1-temperature"]})
     assert flow["errors"] == {"base": "both"}
     flow = await continue_fix(hass, flow, {"matches": ["1-humidity"], "wrong": ["1-temperature"]})
-    assert flow["type"] is FlowResultType.ABORT and flow["reason"] == "report_wrong"
-    assert flow["description_placeholders"] | {"link": ""} == {"wrong": "1", "matches": "1", "unchecked": "1", "link": ""}
-    fields = link_fields(flow["description_placeholders"]["link"])
+    assert flow["description_placeholders"] == {"wrong": "1", "matches": "1", "unchecked": "1"}
+    fields = link_fields(await click(hass, flow, "report_wrong"))
     assert fields["template"] == text.PROBLEM_FORM
     assert fields["problem"] == "- sensor: Temperature: Home Assistant shows 21.5 °C, the device shows something else"
     assert gone(hass, kind)
@@ -512,9 +548,8 @@ async def test_the_list_without_a_wrong_value_never_ends_with_a_thumbs_up(hass: 
     assert manager_of(hass).checks.reports == [] and not gone(hass)
     flow = await continue_fix(hass, flow, {"next_step_id": "mismatch"})
     flow = await continue_fix(hass, flow, {"matches": ["1-temperature"], "wrong": []})
-    assert flow["type"] is FlowResultType.ABORT and flow["reason"] == "report", flow
-    assert flow["description_placeholders"] | {"link": ""} == {"wrong": "0", "matches": "1", "unchecked": "2", "link": ""}
-    assert link_fields(flow["description_placeholders"]["link"])["template"] == text.VERIFY_FORM
+    assert flow["description_placeholders"] == {"matches": "1", "unchecked": "2"}
+    assert link_fields(await click(hass, flow, "report"))["template"] == text.VERIFY_FORM
     assert "| yes | sensor: Temperature |" in manager_of(hass).checks.reports[-1]["report"]
     assert "| not checked | sensor: Humidity |" in manager_of(hass).checks.reports[-1]["report"]
     assert gone(hass)
@@ -529,8 +564,8 @@ async def test_all_values_match_after_going_back_gives_the_thumbs_up(hass: HomeA
     rows = [option["value"] for option in flow["data_schema"].schema["matches"].config["options"]]
     flow = await continue_fix(hass, flow, {"matches": rows, "wrong": []})
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
-    assert flow["type"] is FlowResultType.ABORT and flow["reason"] == "thumbs_up"
-    assert flow["description_placeholders"] == {"link": ISSUE_LINK.format(number=42), "count": "2", "threshold": "3"}
+    assert flow["description_placeholders"] == {"count": "2", "threshold": "3"}
+    assert await click(hass, flow, "thumbs_up") == ISSUE_LINK.format(number=42)
 
 
 @pytest.mark.parametrize("why", ["incomplete", "malformed"])
@@ -543,7 +578,7 @@ async def test_an_answer_that_may_lack_the_oldest_issue_gives_no_thumbs_up(hass:
     answers(device)
     flow = await values_page(hass)
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
-    assert flow["type"] is FlowResultType.ABORT and flow["reason"] == "report"
+    assert last_page(flow) == "report"
 
 
 async def test_looks_off_can_end_with_all_values_match(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock):
@@ -551,8 +586,59 @@ async def test_looks_off_can_end_with_all_values_match(hass: HomeAssistant, zha:
     answers(device)
     flow = await values_page(hass, OFF)
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
-    assert flow["type"] is FlowResultType.ABORT and flow["reason"] == "report"
+    assert last_page(flow) == "report"
     assert gone(hass, OFF)
+
+
+# The last page
+
+
+async def last(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, step: str) -> dict:
+    """The flow of a looks-fine notice up to this last page."""
+    (device,), search = await notice(hass, zha, repo_dir, aioclient_mock)
+    if step == "thumbs_up":
+        search.reply = answer(hit(42, title(FIRMWARE_A), thumbs=1))
+    answers(device)
+    flow = await values_page(hass)
+    if step == "report_wrong":
+        flow = await continue_fix(hass, flow, {"next_step_id": "mismatch"})
+        return await continue_fix(hass, flow, {"matches": ["1-humidity"], "wrong": ["1-temperature"]})
+    return await continue_fix(hass, flow, {"next_step_id": "all_match"})
+
+
+@pytest.mark.parametrize("step", LAST_PAGES)
+@pytest.mark.parametrize("clicked", [True, False], ids=["clicked", "closed"])
+async def test_the_last_page_has_one_button_that_opens_its_link(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, step: str, clicked: bool):
+    """A page without fields shows one button with its own text (an abort page always shows Close). The check is over
+    when the page shows: the notice is gone, the report kept. The button opens the link (the form or the device test of
+    the variant) as an external step: Home Assistant opens it in a new tab and offers it as a button too. The dialog
+    stays on that step until its X closes it, which deletes the flow. Closing it on either page changes nothing more."""
+    flow = await last(hass, zha, repo_dir, aioclient_mock, step)
+    assert last_page(flow) == step
+    checks_ = manager_of(hass).checks
+    assert gone(hass) and len(checks_.reports) == 1
+    before = checks_.summary()
+    # Asked for the page again (a GET of the flow): the same page, nothing opened.
+    again = await continue_fix(hass, flow, None)
+    assert last_page(again) == step and again["description_placeholders"] == flow["description_placeholders"]
+    if clicked:
+        url = await click(hass, again, step)
+        if step == "thumbs_up":
+            assert url == ISSUE_LINK.format(number=42)
+        else:
+            assert url.startswith(f"https://github.com/{const.REPOSITORY}/issues/new?")
+            assert link_fields(url)["template"] == (text.PROBLEM_FORM if step == "report_wrong" else text.VERIFY_FORM)
+        # Asked for again, or sent anything: the same external step (no event for the frontend).
+        for user_input in (None, {"anything": 1}):
+            opened = await continue_fix(hass, flow, user_input)
+            assert opened["type"] is FlowResultType.EXTERNAL_STEP and opened["step_id"] == "open" and opened["url"] == url
+    # The dialog's X: Home Assistant deletes a flow that did not end.
+    hass.data["repairs"]["flow_manager"].async_abort(flow["flow_id"])
+    with pytest.raises(UnknownFlow):
+        await continue_fix(hass, flow, {})
+    assert checks_.summary() == before and len(checks_.reports) == 1
+    assert gone(hass) and self_check(hass)["device_check_done"]
+    assert not await comes_back(hass, repo_dir)
 
 
 # What a search answer may carry
@@ -579,7 +665,7 @@ async def test_nothing_of_the_answer_but_number_and_count_reaches_a_dialog(hass:
     shown.append(flow)
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
     shown.append(flow)
-    assert flow["reason"] == "thumbs_up" and flow["description_placeholders"]["link"] == ISSUE_LINK.format(number=42)
+    assert await click(hass, flow, "thumbs_up") == ISSUE_LINK.format(number=42)
     for result in shown:
         for value in (result.get("description_placeholders") or {}).values():
             assert not [part for part in HOSTILE if part in value], (result["step_id"] if "step_id" in result else result["reason"], value)
@@ -592,7 +678,7 @@ async def test_an_issue_number_of_another_shape_gives_the_form(hass: HomeAssista
     answers(device)
     flow = await values_page(hass)
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
-    assert flow["type"] is FlowResultType.ABORT and flow["reason"] == "report"
+    assert last_page(flow) == "report"
 
 
 # Flows that went stale
@@ -694,7 +780,7 @@ async def test_the_flow_of_an_unloaded_entry_ends(hass: HomeAssistant, zha: Zha,
     assert flow["type"] is FlowResultType.ABORT and flow["reason"] == "not_loaded"
 
 
-@pytest.mark.parametrize("step", ["all_match", "mismatch", "results", "ask", "values"])
+@pytest.mark.parametrize("step", ["all_match", "mismatch", "results", "ask", "values", "report", "report_wrong", "thumbs_up", "open"])
 async def test_a_step_out_of_order_changes_nothing(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, step: str):
     """Home Assistant refuses a choice the menu does not offer. Reached anyway, a step without a device check ends."""
     await notice(hass, zha, repo_dir, aioclient_mock)
@@ -717,7 +803,7 @@ async def test_two_flows_for_one_notice(hass: HomeAssistant, zha: Zha, repo_dir:
     first, second = await values_page(hass), await values_page(hass)
     assert first["flow_id"] != second["flow_id"]
     first = await continue_fix(hass, first, {"next_step_id": "all_match"})
-    assert first["type"] is FlowResultType.ABORT and first["reason"] == "report"
+    assert last_page(first) == "report"
     second = await continue_fix(hass, second, {"next_step_id": "all_match"})
     assert second["type"] is FlowResultType.ABORT and second["reason"] == "gone"
     assert len(manager_of(hass).checks.reports) == 1
@@ -775,9 +861,11 @@ def test_every_kind_shares_the_texts_after_the_first_page():
         flows = [issues[kind]["fix_flow"] for kind in checks.KINDS]
         for flow in flows:
             assert set(flow["step"][FIRST]["menu_options"]) == {"check", "skip"}, path.name
-            assert set(flow["step"]) == {FIRST, "check", "values", "values_no_answer", "values_no_answer_mains", "results"}, path.name
-            assert set(flow["abort"]) >= {"not_loaded", "zha_not_loaded", "no_device", "device_gone", "check_failed", "no_entities", "report", "report_wrong",
-                                          "thumbs_up", "confirmed", "skipped", "gone", "file_changed"}, path.name
+            assert set(flow["step"]) == {FIRST, "check", "values", "values_no_answer", "values_no_answer_mains", "results", *LAST_PAGES}, path.name
+            assert set(flow["abort"]) == {"not_loaded", "zha_not_loaded", "no_device", "device_gone", "check_failed", "no_entities", "confirmed", "skipped", "gone",
+                                          "file_changed"}, path.name
+            # Each last page: a title, its text and the text of its one button.
+            assert all(set(flow["step"][step]) == {"title", "description", "submit"} for step in LAST_PAGES), path.name
         shared = [{**flow, "step": {step: texts for step, texts in flow["step"].items() if step != FIRST}} for flow in flows]
         assert shared[0] == shared[1] == shared[2], path.name
         # The first pages differ.

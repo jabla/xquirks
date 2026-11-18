@@ -505,6 +505,9 @@ def check_flow_texts(kind: str, result: dict) -> dict:
         assert not unused, unused
     elif result["type"] == "abort":
         render(flow["abort"][result["reason"]], result["description_placeholders"])
+    elif result["type"] == "external":
+        # Home Assistant's frontend opens only http(s) addresses.
+        assert result["url"].startswith("https://"), result
     return result
 
 

@@ -7,6 +7,9 @@ step. The "changes wait for a ZHA reload" issue is left only when ZHA was not lo
 ZHA when the user picks it. The notice of a held-back file turns on "Offer high-risk files"
 (HeldBackFlow): the change list that follows asks before it installs anything. A self-check notice
 leads through the device check (SelfCheckFlow).
+
+A first page shows the device picture of this run (manager.picture): its address carries a token of each Home Assistant
+run, so the one a notice stored from an earlier run is dead.
 """
 
 from __future__ import annotations
@@ -175,7 +178,8 @@ class HeldBackFlow(_QuirkFlow):
         # What the notice says (a fixable notice shows no description), as it stands after the refresh.
         issue = ir.async_get(self.hass).async_get_issue(DOMAIN, self.issue_id)
         stored = (issue.translation_placeholders if issue is not None else None) or {}
-        placeholders = {key: str(stored.get(key, "")) for key in ("picture", "devices", "file", "status", "reasons")}
+        placeholders = {key: str(stored.get(key, "")) for key in ("devices", "file", "status", "reasons")}
+        placeholders["picture"] = manager.picture(self.issue_data["file"])
         placeholders["files"] = text.name_list([f"`{name}` ({text.plain(manager.quirk_label(name))})" for name in names])
         return self.async_show_menu(step_id="confirm", menu_options=["apply", "not_now"], description_placeholders=placeholders)
 
@@ -204,6 +208,11 @@ class SelfCheckFlow(DeviceCheck, RepairsFlow):
     the device's variant, else the filled-in form) or "Something does not match" (the list of the options flow, then the
     report). "Do not check" and every end close the notice for its file revision. From the search answer only the issue
     number (in a link built here) and its count reach a page.
+
+    The last page (the report, the problem report or the thumbs-up) closes the notice when it shows. It is a page without
+    fields whose one button opens its link: Home Assistant shows Close on an abort page and has no link button. The
+    button answers with an external step (step "open"): the frontend opens the link in a new tab and offers it as a
+    button in case the browser blocked that. The dialog stays there until its X deletes the flow.
     """
 
     RESULTS = "values"
@@ -220,6 +229,9 @@ class SelfCheckFlow(DeviceCheck, RepairsFlow):
         self._result = None
         # The first page's search answer (None: no search, or it failed), for the last page.
         self._answer: object = None
+        # The last page as shown (step id and placeholders) and the link its button opens (None before it showed).
+        self._last: tuple[str, dict[str, str]] | None = None
+        self._link: str | None = None
 
     def _manager(self) -> QuirkManager | None:
         entries = self.hass.config_entries.async_loaded_entries(DOMAIN)
@@ -294,8 +306,9 @@ class SelfCheckFlow(DeviceCheck, RepairsFlow):
         # What the notice found, as it showed it (a fixable issue shows no description).
         issue = ir.async_get(self.hass).async_get_issue(DOMAIN, self.issue_id)
         stored = (issue.translation_placeholders if issue is not None else None) or {}
-        shown = ("picture", "file", "revision", "devices", *(("link",) if off else ()))
+        shown = ("file", "revision", "devices", *(("link",) if off else ()))
         placeholders = {key: str(stored.get(key, "")) for key in shown}
+        placeholders["picture"] = manager.picture(name)
         if off:
             # The open reports of the file before the form: built here, a notice of an earlier release has no such link.
             placeholders["reports"] = text.reports_url(name)
@@ -347,7 +360,45 @@ class SelfCheckFlow(DeviceCheck, RepairsFlow):
             return self._finish(checks, result, matches, set())
         checks.finish_check(result, matches, set())
         number, count, threshold = found
-        return self.async_abort(reason="thumbs_up", description_placeholders={"link": text.issue_url(number), "count": str(count), "threshold": str(threshold)})
+        return self._show_last("thumbs_up", {"count": str(count), "threshold": str(threshold)}, text.issue_url(number))
+
+    def _finish(self, checks: Checks, result: CheckResult, matches: set[str], wrong: set[str]) -> FlowResult:
+        """The report: the counts, the button opens the form it goes to."""
+        _report, url = checks.finish_check(result, matches, wrong)
+        unchecked = str(len(result.rows) - len(matches) - len(wrong))
+        if wrong:
+            return self._show_last("report_wrong", {"wrong": str(len(wrong)), "matches": str(len(matches)), "unchecked": unchecked}, url)
+        return self._show_last("report", {"matches": str(len(matches)), "unchecked": unchecked}, url)
+
+    def _show_last(self, step_id: str, placeholders: dict[str, str], link: str) -> FlowResult:
+        self._last, self._link = (step_id, placeholders), link
+        return self.async_show_form(step_id=step_id, data_schema=None, description_placeholders=placeholders)
+
+    def _open(self, user_input: dict | None) -> FlowResult:
+        """The button of the last page: the external step that opens its link. Asked for the page again (no input): the
+        page. The check was finished when the page showed: nothing is decided here."""
+        if self._last is None or self._link is None:
+            # Not reached through the last page (Home Assistant lets no flow skip to a step).
+            return self.async_abort(reason="check_failed")
+        if user_input is None:
+            step_id, placeholders = self._last
+            return self.async_show_form(step_id=step_id, data_schema=None, description_placeholders=placeholders)
+        return self.async_external_step(step_id="open", url=self._link)
+
+    async def async_step_report(self, user_input: dict | None = None) -> FlowResult:
+        return self._open(user_input)
+
+    async def async_step_report_wrong(self, user_input: dict | None = None) -> FlowResult:
+        return self._open(user_input)
+
+    async def async_step_thumbs_up(self, user_input: dict | None = None) -> FlowResult:
+        return self._open(user_input)
+
+    async def async_step_open(self, user_input: dict | None = None) -> FlowResult:
+        """The link opened: the same external step whatever comes (it can only lead to another one or to its end)."""
+        if self._link is None:
+            return self.async_abort(reason="check_failed")
+        return self.async_external_step(step_id="open", url=self._link)
 
     def _issue(self, checks: Checks, result: CheckResult) -> tuple[int, int, int] | None:
         """The oldest open issue of the checked device's variant in the first page's answer (the fixed part the form's

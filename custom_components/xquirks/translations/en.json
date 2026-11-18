@@ -100,8 +100,8 @@
           "held_unreadable_folder": "Nothing was changed: the custom quirks folder cannot be read.",
           "failed": "Nothing was changed: {failed}\n\nxquirks put back what it had changed before this step. Once the cause is gone, the repair lists what is left to do.",
           "failed_partly": "Stopped at a failure: {failed}\n\nxquirks could not put these changes back:\n\n{left}\n\nZHA loads what is in `{folder}` now or at its next start. The next list sets the rest right.",
-          "done": "{done}\n\nZHA is reloading `{folder}` now: your Zigbee devices are back in a few seconds.\n\nxquirks watches the values of each installed or updated file for a day. Then a notice tells you whether they look plausible. To compare them with the device yourself: Settings > Devices & services > xquirks > Configure > Check a device.",
-          "done_zha_not_loaded": "{done}\n\nZHA is not loaded right now. It uses the changes in `{folder}` when it starts.\n\nOnce ZHA runs, xquirks watches the values of each installed or updated file for a day. Then a notice tells you whether they look plausible.",
+          "done": "{done}\n\nZHA is reloading `{folder}` now: your Zigbee devices are back in a few seconds.\n\nxquirks watches the values of each installed or updated file for a day. A notice tells you if they look off. For a file that is not verified on a device yet, a notice may also ask you for a device test. To compare the values with the device yourself: Settings > Devices & services > xquirks > Configure > Check a device.",
+          "done_zha_not_loaded": "{done}\n\nZHA is not loaded right now. It uses the changes in `{folder}` when it starts.\n\nOnce ZHA runs, xquirks watches the values of each installed or updated file for a day. A notice tells you if they look off. For a file that is not verified on a device yet, a notice may also ask you for a device test.",
           "not_now": "Put aside: nothing was changed. To decide later: Settings > System > Repairs > three-dot menu > Show ignored repairs. A different list comes back as a new repair."
         }
       }
@@ -244,6 +244,21 @@
               "matches": "Match the device",
               "wrong": "Do not match the device"
             }
+          },
+          "report": {
+            "title": "Report the device test",
+            "description": "Thank you! Values that match the device: {matches}. Not compared: {unchecked}.\n\n**Report** opens the form on GitHub. It is filled in with the report. Check it and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+            "submit": "Report"
+          },
+          "report_wrong": {
+            "title": "Report the wrong values",
+            "description": "Values that do not match the device: {wrong}. Matching: {matches}. Not compared: {unchecked}.\n\n**Report** opens the form on GitHub. It is filled in with the report. Describe what the device shows. Check the form and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+            "submit": "Report"
+          },
+          "thumbs_up": {
+            "title": "Confirm the device test",
+            "description": "Thank you!\n\nA device test of this device with the same firmware is on GitHub already. Give it a thumbs-up there: that counts as your confirmation (a GitHub account is needed). Confirmations so far: {count}. At {threshold}, the file can become verified for everyone.\n\nThe report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+            "submit": "Open the device test"
           }
         },
         "progress": {
@@ -260,9 +275,6 @@
           "device_gone": "The device no longer runs this file or ZHA does not have it right now.",
           "check_failed": "The check failed. The Home Assistant log says why.",
           "no_entities": "The file adds no entity to this device that the check can show.",
-          "report": "Thank you! Values that match the device: {matches}. Not compared: {unchecked}.\n\n[Report the device test on GitHub]({link}): the form is filled in with the report. Check it and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
-          "report_wrong": "Values that do not match the device: {wrong}. Matching: {matches}. Not compared: {unchecked}.\n\n[Report the wrong values on GitHub]({link}): the form is filled in with the report. Describe what the device shows, check the form and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
-          "thumbs_up": "Thank you!\n\nA device test of this device with the same firmware is on GitHub already: [give it a thumbs-up]({link}). That counts as your confirmation (a GitHub account is needed). Confirmations so far: {count}. At {threshold}, the file can become verified for everyone.\n\nThe report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
           "confirmed": "Nothing to check: this file is verified now or enough people confirmed it on devices like yours. The notice is gone.",
           "skipped": "Done. This notice does not come back for this revision of the file.",
           "gone": "Nothing to do any more: this notice was closed in the meantime.",
@@ -320,6 +332,21 @@
               "matches": "Match the device",
               "wrong": "Do not match the device"
             }
+          },
+          "report": {
+            "title": "Report the device test",
+            "description": "Thank you! Values that match the device: {matches}. Not compared: {unchecked}.\n\n**Report** opens the form on GitHub. It is filled in with the report. Check it and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+            "submit": "Report"
+          },
+          "report_wrong": {
+            "title": "Report the wrong values",
+            "description": "Values that do not match the device: {wrong}. Matching: {matches}. Not compared: {unchecked}.\n\n**Report** opens the form on GitHub. It is filled in with the report. Describe what the device shows. Check the form and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+            "submit": "Report"
+          },
+          "thumbs_up": {
+            "title": "Confirm the device test",
+            "description": "Thank you!\n\nA device test of this device with the same firmware is on GitHub already. Give it a thumbs-up there: that counts as your confirmation (a GitHub account is needed). Confirmations so far: {count}. At {threshold}, the file can become verified for everyone.\n\nThe report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+            "submit": "Open the device test"
           }
         },
         "progress": {
@@ -336,9 +363,6 @@
           "device_gone": "The device no longer runs this file or ZHA does not have it right now.",
           "check_failed": "The check failed. The Home Assistant log says why.",
           "no_entities": "The file adds no entity to this device that the check can show.",
-          "report": "Thank you! Values that match the device: {matches}. Not compared: {unchecked}.\n\n[Report the device test on GitHub]({link}): the form is filled in with the report. Check it and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
-          "report_wrong": "Values that do not match the device: {wrong}. Matching: {matches}. Not compared: {unchecked}.\n\n[Report the wrong values on GitHub]({link}): the form is filled in with the report. Describe what the device shows, check the form and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
-          "thumbs_up": "Thank you!\n\nA device test of this device with the same firmware is on GitHub already: [give it a thumbs-up]({link}). That counts as your confirmation (a GitHub account is needed). Confirmations so far: {count}. At {threshold}, the file can become verified for everyone.\n\nThe report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
           "confirmed": "Nothing to check: this file is verified now or enough people confirmed it on devices like yours. The notice is gone.",
           "skipped": "Done. This notice does not come back for this revision of the file.",
           "gone": "Nothing to do any more: this notice was closed in the meantime.",
@@ -396,6 +420,21 @@
               "matches": "Match the device",
               "wrong": "Do not match the device"
             }
+          },
+          "report": {
+            "title": "Report the device test",
+            "description": "Thank you! Values that match the device: {matches}. Not compared: {unchecked}.\n\n**Report** opens the form on GitHub. It is filled in with the report. Check it and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+            "submit": "Report"
+          },
+          "report_wrong": {
+            "title": "Report the wrong values",
+            "description": "Values that do not match the device: {wrong}. Matching: {matches}. Not compared: {unchecked}.\n\n**Report** opens the form on GitHub. It is filled in with the report. Describe what the device shows. Check the form and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+            "submit": "Report"
+          },
+          "thumbs_up": {
+            "title": "Confirm the device test",
+            "description": "Thank you!\n\nA device test of this device with the same firmware is on GitHub already. Give it a thumbs-up there: that counts as your confirmation (a GitHub account is needed). Confirmations so far: {count}. At {threshold}, the file can become verified for everyone.\n\nThe report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+            "submit": "Open the device test"
           }
         },
         "progress": {
@@ -412,9 +451,6 @@
           "device_gone": "The device no longer runs this file or ZHA does not have it right now.",
           "check_failed": "The check failed. The Home Assistant log says why.",
           "no_entities": "The file adds no entity to this device that the check can show.",
-          "report": "Thank you! Values that match the device: {matches}. Not compared: {unchecked}.\n\n[Report the device test on GitHub]({link}): the form is filled in with the report. Check it and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
-          "report_wrong": "Values that do not match the device: {wrong}. Matching: {matches}. Not compared: {unchecked}.\n\n[Report the wrong values on GitHub]({link}): the form is filled in with the report. Describe what the device shows, check the form and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
-          "thumbs_up": "Thank you!\n\nA device test of this device with the same firmware is on GitHub already: [give it a thumbs-up]({link}). That counts as your confirmation (a GitHub account is needed). Confirmations so far: {count}. At {threshold}, the file can become verified for everyone.\n\nThe report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
           "confirmed": "Nothing to check: this file is verified now or enough people confirmed it on devices like yours. The notice is gone.",
           "skipped": "Done. This notice does not come back for this revision of the file.",
           "gone": "Nothing to do any more: this notice was closed in the meantime.",
