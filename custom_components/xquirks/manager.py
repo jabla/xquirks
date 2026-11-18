@@ -9,7 +9,8 @@ offered.
 
 Once ZHA loaded a file the list installed or updated, each Tuya device that runs it gets one data
 query: such a device sends its values by itself only when it joins, so its settings would stay
-unknown until a value changes. A self-check of the file starts then (checks.py)."""
+unknown until a value changes. A self-check of the file starts then (checks.py). A device whose
+firmware watch starts (checks.py) gets one data query too."""
 
 from __future__ import annotations
 
@@ -265,7 +266,8 @@ def _stored_state(data: dict[str, Any], own_guard: str) -> ContentState | None:
             raise BadContent("not bound to a commit")
         withdrawn = from_withdrawn_rows(data.get("withdrawn", []))
         state = from_manifest(
-            data["manifest"], tag=data["tag"], content=int(data["number"]), commit=data["commit"], homeassistant=data.get("homeassistant"), withdrawn=withdrawn
+            data["manifest"], tag=data["tag"], content=int(data["number"]), commit=data["commit"], homeassistant=data.get("homeassistant"), withdrawn=withdrawn,
+            confirm_threshold=data.get("confirm_threshold"),
         )
     except (BadContent, KeyError, TypeError, ValueError):
         _LOGGER.warning("Dropping the stored content state %s: it does not load", data.get("tag"))
@@ -391,7 +393,8 @@ class QuirkManager:
         # Files ZHA loaded since the list installed or updated them: their Tuya devices get a data
         # query at the next refresh that reads what ZHA applies (_query_tuya_devices).
         self._query_due: set[str] = set()
-        # File name -> the data queries sent after ZHA loaded it (this run only), for diagnostics.
+        # File name -> the last data queries sent for it (this run only), for diagnostics: after ZHA loaded it, or when
+        # the firmware watch of one of its devices started.
         self.queries: dict[str, dict[str, Any]] = {}
         self.zha_state = ZHA_NOT_LOADED
         self.folder: str | None = None
@@ -532,6 +535,8 @@ class QuirkManager:
                 # with the state it started with, the next one sees the new state complete.
                 async with self._lock:
                     self.state, self.newer_withdrawn = found
+                    # A file the new state calls verified needs no device test: its "fine" or "unproven" notice goes.
+                    self.checks.drop_verified()
                     await self._async_refresh()
                 return
         # No newer state: the folder and the devices are read all the same, so a file edited or
@@ -564,7 +569,7 @@ class QuirkManager:
         if (facts := self._facts(ref)) is None:
             try:
                 meta = await remote.async_meta(session, ref.commit)
-                facts = {"commit": ref.commit, "guard": meta.guard, "homeassistant": meta.homeassistant}
+                facts = {"commit": ref.commit, "guard": meta.guard, "homeassistant": meta.homeassistant, "confirm_threshold": meta.confirm_threshold}
             except remote.BadTag as err:
                 facts = {"commit": ref.commit, "bad": f"cannot be read ({err})", "run": _RUN}
                 _LOGGER.info("Content check: %s %s", ref.tag, facts["bad"])
@@ -631,7 +636,7 @@ class QuirkManager:
             facts = await self._examine(session, ref)
             if (reason := self._reason(facts)) is None:
                 try:
-                    taken = await remote.async_state(session, ref, facts.get("homeassistant"))
+                    taken = await remote.async_state(session, ref, facts.get("homeassistant"), facts.get("confirm_threshold"))
                     break
                 except remote.BadTag as err:
                     # Content at a commit never changes: this tag stays unusable in this run, an older one may do.
@@ -650,6 +655,7 @@ class QuirkManager:
                 "commit": taken.commit,
                 "guard": self.guard.id,
                 "homeassistant": taken.homeassistant,
+                "confirm_threshold": taken.confirm_threshold,
                 "withdrawn": withdrawn_rows(taken.withdrawn),
                 "manifest": taken.manifest,
                 **listed,
@@ -985,7 +991,7 @@ class QuirkManager:
         if not names:
             return {}
         rows = [f"`{name}` ({text.plain(self._quirk(name))})" for name in names]
-        placeholders = {"reason": text.plain(self.tuya_check), "files": text.name_list(rows)}
+        placeholders = {"reason": text.plain(self.tuya_check), "files": text.name_list(rows), "reports": text.reports_url(text.TUYA_REPORTS)}
         return {TUYA_CHECK: (TUYA_CHECK, False, placeholders, {"severe": True})}
 
     def unavailable(self, name: str) -> str | None:
@@ -1085,19 +1091,26 @@ class QuirkManager:
         if plan.changes:
             # The id is the list's: "Not now" puts exactly this list aside, another list is a new issue.
             wanted[f"changes_{plan.key}"] = ("changes", True, {"count": str(plan.changes)}, {"key": plan.key, "severe": plan.severe})
+        excluded = frozenset(self.entry.options.get(CONF_EXCLUDED, ()))
         for blocked in plan.blocked:
+            # The plan counts left-out devices too (ZHA applies a file to every device it claims): the notice names only
+            # the others, none when every one is left out.
+            shown = tuple(i for i in blocked.devices if i in devices and not devices[i].disabled and i not in excluded)
+            if not shown:
+                continue
             entry = self._entry(blocked.name)
-            key = f"blocked_{stem(blocked.name)}_{_digest(*blocked.devices, *(devices[i].quirk or '' for i in blocked.devices))}"
+            key = f"blocked_{stem(blocked.name)}_{_digest(*shown, *(devices[i].quirk or '' for i in shown))}"
             placeholders = {
-                **text.offer_title(entry, len(blocked.devices)),
+                **text.offer_title(entry, len(shown)),
                 "file": blocked.name,
-                "devices": text.device_list(blocked.devices, devices, plan.ours),
+                "devices": text.device_list(shown, devices, plan.ours),
                 "status": text.status(entry),
                 "picture": self.picture(blocked.name),
             }
             wanted[key] = ("blocked", False, placeholders, {})
         for item in plan.held_back:
-            # Ignorable like the notice above: the user may leave the file out for good.
+            # Its fix flow offers high-risk files (repairs.HeldBackFlow). "Not now" ignores it: the user may leave the file
+            # out for good.
             entry = self._entry(item.name)
             placeholders = {
                 **text.offer_title(entry, len(item.devices)),
@@ -1107,7 +1120,7 @@ class QuirkManager:
                 "reasons": text.reasons(entry),
                 "picture": self.picture(item.name),
             }
-            wanted[f"held_back_{stem(item.name)}_{_digest(*item.devices)}"] = ("held_back", False, placeholders, {"file": item.name})
+            wanted[f"held_back_{stem(item.name)}_{_digest(*item.devices)}"] = ("held_back", True, placeholders, {"file": item.name})
         for name in plan.users_files:
             sha = self._present.get(name) or ""
             placeholders = {"file": name, "quirk": self._quirk(name), "folder": self.folder or "", "picture": self.picture(name)}
@@ -1123,7 +1136,8 @@ class QuirkManager:
                 device_id: text.report_url(entry, item.name, devices[device_id], self.signatures[device_id], why, HA_VERSION)
                 for device_id, why in item.devices if device_id in devices and device_id in self.signatures
             }
-            placeholders = {"file": item.name, "quirk": self._quirk(item.name), "devices": text.misfit_list(item, devices, links), "picture": self.picture(item.name)}
+            placeholders = {"file": item.name, "quirk": self._quirk(item.name), "devices": text.misfit_list(item, devices, links), "picture": self.picture(item.name),
+                            "reports": text.reports_url(item.name)}
             wanted[key] = ("misfit", False, placeholders, {})
         for path in plan.changed:
             name = os.path.basename(path)
@@ -1159,7 +1173,7 @@ class QuirkManager:
         wanted = {}
         for name in plan.refused:
             if error := self.unavailable(name):
-                placeholders = {"file": name, "quirk": self._quirk(name), "error": text.plain(error)}
+                placeholders = {"file": name, "quirk": self._quirk(name), "error": text.plain(error), "reports": text.reports_url(name)}
                 wanted[f"unavailable_{stem(name)}_{self.source.shas[name][:10]}"] = ("unavailable", False, placeholders, {"file": name})
         return wanted
 
@@ -1173,7 +1187,7 @@ class QuirkManager:
         """A security notice per offered file the guard refused."""
         wanted = {}
         for name, refusal in self.refused.items():
-            placeholders = {"file": name, "quirk": self._quirk(name), "revision": refusal["revision"] or "unknown"}
+            placeholders = {"file": name, "quirk": self._quirk(name), "revision": refusal["revision"] or "unknown", "reports": text.reports_url(name)}
             wanted[f"refused_{stem(name)}_{refusal['sha256'][:10]}"] = ("refused", False, placeholders, {"file": name, "sha256": refusal["sha256"]})
         return wanted
 
@@ -1461,24 +1475,28 @@ class QuirkManager:
 
     @callback
     def _query_tuya_devices(self) -> None:
-        """Send one Tuya data query to each Tuya device that runs a file ZHA loaded new or updated.
+        """Send one Tuya data query to each Tuya device that runs a file ZHA loaded new or updated, and
+        to each device whose firmware watch started in this refresh (checks.query_due: that device
+        only, for the file it runs).
 
         Called right after a refresh read what ZHA applies, so self.devices is current. A device is
         asked when ZHA reports that it runs the file, it is not left out (disabled or excluded in the
         options), the quirk ZHA applied gives it the Tuya data query and ZHA reports it available. Any
         kind of file counts, an alias file too: the quirk decides. A device on another quirk is never
-        asked, one without a Tuya MCU cluster is not listed either. The files are due once: a device
-        that misses the query is not asked again.
+        asked, one without a Tuya MCU cluster is not listed either. The files and devices are due
+        once: a device that misses the query is not asked again.
         """
-        if not self._query_due:
+        if not self._query_due and not self.checks.query_due:
             return
         names, self._query_due = self._query_due, set()
+        watches, self.checks.query_due = self.checks.query_due, {}
         due = {stem(name): name for name in names}
         excluded = frozenset(self.entry.options.get(CONF_EXCLUDED, ()))
+        # A device whose firmware watch started runs its file: the sync just before read that from self.devices.
         wanted = {
-            self.ieees[device_id]: (due[device.quirk], device)
+            self.ieees[device_id]: (name, device)
             for device_id, device in self.devices.items()
-            if device.quirk in due and not device.disabled and device_id not in excluded and device_id in self.ieees
+            if (name := due.get(device.quirk) or watches.get(device_id)) and not device.disabled and device_id not in excluded and device_id in self.ieees
         }
         if not wanted:
             return
@@ -1641,7 +1659,8 @@ class QuirkManager:
             "not_written_while_the_tuya_self_test_fails": sorted(name for name in plan.refused if self._tuya_stopped(name)),
             "cannot_be_downloaded": {name: error for name in plan.refused if (error := self.unavailable(name))},
             "pending_zha_reload": [f"{c['file']}: {c['change']}" for c in self.data["pending"]["changes"]],
-            # The Tuya data queries after ZHA loaded a file the list installed or updated (this run).
+            # The last Tuya data queries per file (this run): after ZHA loaded it installed or updated, or when the firmware
+            # watch of one of its devices started.
             "tuya_data_queries": dict(sorted(self.queries.items())),
             # The self-checks after an install or update and the reports of the device check.
             **self.checks.summary(),

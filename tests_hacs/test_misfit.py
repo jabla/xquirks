@@ -13,7 +13,7 @@ from homeassistant.util import dt as dt_util
 from pytest_homeassistant.common import async_fire_time_changed
 
 from .conftest import MANIFEST, Zha, issue_of, issues_of, manager_of, offered, setup_entry, write_repo
-from .integration import const, manager
+from .integration import const, manager, text
 
 IEEE = "00:11:22:33:44:55:66:21"
 # acme_c puts its manufacturer cluster on endpoint 1.
@@ -37,7 +37,7 @@ async def test_a_device_that_does_not_fit_gets_a_report_link(hass: HomeAssistant
     assert offered(hass) == []
     issue = issue_of(hass, "misfit")
     placeholders = issue.translation_placeholders
-    assert placeholders["file"] == "z2m_acme_c.py"
+    assert placeholders["file"] == "z2m_acme_c.py" and placeholders["reports"] == text.reports_url("z2m_acme_c.py")
     assert "Hallway sensor (Acme C-1): the first endpoint with cluster 0xFC00 is 2, not 1." in placeholders["devices"]
     link = placeholders["devices"].split("[Report this device](", 1)[1].rstrip(")")
     parts = urlsplit(link)

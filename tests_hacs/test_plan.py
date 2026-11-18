@@ -824,7 +824,7 @@ def test_a_device_that_does_not_fit_its_next_file_is_named_so_before_a_users_fil
 def test_an_update_that_would_newly_fit_a_device_on_the_users_quirk_is_blocked():
     """The installed version steps back on Garage (no endpoint 2), so Garage runs the user's quirk; the
     offered version fits it under the same exact name and ZHA could apply ours instead. The list does
-    not write it: the notice says the user's quirk is in the way, also for a left-out Garage."""
+    not write it, also for a left-out Garage (its notice names only the devices not left out)."""
     st = state(f={"fingerprints": [("Acme", "F-1")], "endpoints": {"1": [0x0006]}})
     installed = {**record("f", [("Acme", "F-1")]), "names": names_of({"fingerprints": [["Acme", "F-1"]], "endpoints": {"2": []}})}
     for disabled in (False, True):

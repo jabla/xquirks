@@ -59,8 +59,8 @@
       "device_gone": "The device no longer runs a file from xquirks or ZHA does not have it right now.",
       "check_failed": "The check failed. The Home Assistant log says why.",
       "no_entities": "The file adds no entity to this device that the check can show.",
-      "report": "{matches} values match the device, {unchecked} were not compared. Thank you!\n\n[Report the device test on GitHub]({link}): the form is filled in with the report. Check it and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
-      "report_wrong": "{wrong} values do not match the device, {matches} match, {unchecked} were not compared.\n\n[Report the wrong values on GitHub]({link}): the form is filled in with the report. Describe what the device shows, check the form and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics)."
+      "report": "Thank you! Values that match the device: {matches}. Not compared: {unchecked}.\n\n[Report the device test on GitHub]({link}): the form is filled in with the report. Check it and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+      "report_wrong": "Values that do not match the device: {wrong}. Matching: {matches}. Not compared: {unchecked}.\n\n[Report the wrong values on GitHub]({link}): the form is filled in with the report. Describe what the device shows, check the form and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics)."
     }
   },
   "issues": {
@@ -112,7 +112,26 @@
     },
     "held_back": {
       "title": "High-risk quirk held back: {quirk}",
-      "description": "{picture}{devices}\n\nxquirks has `{file}` for it ({status}) but holds it back until it is verified on a device. {reasons}\n\nTo get it anyway, turn on **Offer high-risk files** under Settings > Devices & services > xquirks > Configure > What xquirks offers. The next change list then offers it."
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "High-risk quirk held back",
+            "description": "{picture}{devices}\n\nxquirks has `{file}` for it ({status}) but holds it back until it is verified on a device. {reasons}\n\n**Offer high-risk files** turns on that option (Settings > Devices & services > xquirks > Configure > What xquirks offers). It releases every high-risk file held back now:\n\n{files}\n\nThe change list then offers them and asks again before it installs anything. **Not now** puts this notice aside.",
+            "menu_options": {
+              "apply": "Offer high-risk files",
+              "not_now": "Not now"
+            }
+          }
+        },
+        "abort": {
+          "not_loaded": "xquirks is not loaded. Reload it and try again.",
+          "stale": "Nothing was changed: the files held back changed while this dialog was open. A notice that still stands is under Settings > System > Repairs.",
+          "already_on": "Nothing was changed: **Offer high-risk files** is on already. The change list offers the files.",
+          "held": "Nothing was changed: xquirks cannot tell right now which files it holds back, for example while a change waits for ZHA to load the custom quirks folder. Open this notice again later.",
+          "done": "**Offer high-risk files** is on now. The change list under Settings > System > Repairs then offers the files. It asks before it installs anything. To turn the option off: Settings > Devices & services > xquirks > Configure > What xquirks offers.",
+          "not_now": "Put aside: nothing was changed. To decide later: Settings > System > Repairs > three-dot menu > Show ignored repairs."
+        }
+      }
     },
     "users_file": {
       "title": "Your file has the name of a quirk: {quirk}",
@@ -124,7 +143,7 @@
     },
     "misfit": {
       "title": "Quirk does not fit your device: {quirk}",
-      "description": "{picture}`{file}` does not fit the endpoints of these devices, so xquirks does not install it for them. A device that runs an older version keeps it until an update for other devices replaces it:\n\n{devices}\n\nEach link opens a prefilled report on GitHub with the device's endpoints and clusters, without its name or address. With it, a later version of the file can fit the device."
+      "description": "{picture}`{file}` does not fit the endpoints of these devices, so xquirks does not install it for them. A device that runs an older version keeps it until an update for other devices replaces it:\n\n{devices}\n\nEach link opens a prefilled report on GitHub with the device's endpoints and clusters, without its name or address. With it, a later version of the file can fit the device. Before you send one, look at the [open reports]({reports}): if one is for the same device, a thumbs-up or a comment there is enough."
     },
     "changed": {
       "title": "Changed quirk left alone: {quirk}",
@@ -165,27 +184,243 @@
     },
     "unavailable": {
       "title": "Quirk file cannot be downloaded: {quirk}",
-      "description": "`{file}` cannot be used: {error}\n\nNo change list writes it. An installed copy stays at its revision while its devices use it and no other file takes one of them. Please report it in the xquirks issue tracker with the xquirks diagnostics (Settings > Devices & services > xquirks > three-dot menu > Download diagnostics)."
+      "description": "`{file}` cannot be used: {error}\n\nNo change list writes it. An installed copy stays at its revision while its devices use it and no other file takes one of them. Look at the [open reports]({reports}) first: if one fits, a thumbs-up or a comment there is enough. Otherwise please report it in the xquirks issue tracker with the xquirks diagnostics (Settings > Devices & services > xquirks > three-dot menu > Download diagnostics)."
     },
     "refused": {
       "title": "Quirk file refused: {quirk}",
-      "description": "`{file}` (revision {revision}) holds code xquirks does not allow in a quirk file or targets devices it is not offered for. xquirks refused it: no change list writes it. An installed copy stays at its revision while its devices use it and no other file takes one of them. The change list says when it goes.\n\nThis should never happen. It can mean that someone tampered with the repository xquirks loads its quirk files from. Please report it in the xquirks issue tracker with the xquirks diagnostics (Settings > Devices & services > xquirks > three-dot menu > Download diagnostics)."
+      "description": "`{file}` (revision {revision}) holds code xquirks does not allow in a quirk file or targets devices it is not offered for. xquirks refused it: no change list writes it. An installed copy stays at its revision while its devices use it and no other file takes one of them. The change list says when it goes.\n\nThis should never happen. It can mean that someone tampered with the repository xquirks loads its quirk files from. Look at the [open reports]({reports}) first: if one fits, a thumbs-up or a comment there is enough. Otherwise please report it in the xquirks issue tracker with the xquirks diagnostics (Settings > Devices & services > xquirks > three-dot menu > Download diagnostics)."
     },
     "tuya_check": {
       "title": "Tuya quirk files on hold: their type check fails",
-      "description": "The typed Tuya cluster of the Tuya quirk files failed its self-test on the zhaquirks version this Home Assistant runs: {reason}\n\nIt checks each datapoint value against the type of its attribute. Until it works again, xquirks installs and updates no Tuya file. Installed Tuya files stay as they are, but their devices may show no new values meanwhile. If a device stops updating, you can delete its file from the custom quirks folder and reload ZHA: xquirks offers it again once the check works. Affected Tuya files:\n\n{files}\n\nLook for an update of xquirks. If there is none, please report it in the xquirks issue tracker with the xquirks diagnostics (Settings > Devices & services > xquirks > three-dot menu > Download diagnostics)."
+      "description": "The typed Tuya cluster of the Tuya quirk files failed its self-test on the zhaquirks version this Home Assistant runs: {reason}\n\nIt checks each datapoint value against the type of its attribute. Until it works again, xquirks installs and updates no Tuya file. Installed Tuya files stay as they are, but their devices may show no new values meanwhile. If a device stops updating, you can delete its file from the custom quirks folder and reload ZHA: xquirks offers it again once the check works. Affected Tuya files:\n\n{files}\n\nLook for an update of xquirks. If there is none, look at the [open reports]({reports}): if one fits, a thumbs-up or a comment there is enough. Otherwise please report it in the xquirks issue tracker with the xquirks diagnostics (Settings > Devices & services > xquirks > three-dot menu > Download diagnostics)."
     },
     "self_check_fine": {
       "title": "Quirk values look plausible: {quirk}",
-      "description": "{picture}xquirks watched `{file}` (revision {revision}) for a day after ZHA loaded it. Values of the file came from the device and nothing looked off:\n\n{devices}\n\nPlease compare the values with the device itself. Your device test can make the file verified for everyone with this device. **Check a device** under Settings > Devices & services > xquirks > Configure asks the device for its current values and fills in the report for you."
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Quirk values look plausible",
+            "description": "{picture}xquirks watched `{file}` (revision {revision}) for a day after ZHA loaded it or the device got new firmware. Values of the file came from the device and nothing looked off:\n\n{devices}\n\nPlease compare the values with the device itself. Your device test can make the file verified for everyone with this device. **Check the device now** asks the device for its current values and fills in the report for you. **Do not check** closes this notice.",
+            "menu_options": {
+              "check": "Check the device now",
+              "skip": "Do not check"
+            }
+          },
+          "check": {
+            "title": "Which device",
+            "description": "Which device should xquirks ask for its current values? A Tuya device gets a data query, any other device a read of the values behind the quirk's entities. This changes nothing on the device. Wake a battery device first, for example with its button.",
+            "data": {
+              "device": "Device"
+            }
+          },
+          "values": {
+            "title": "Compare with the device",
+            "description": "**{device}** with `{file}` (revision {revision}):\n\n{entities}\n\nCompare each value with the device's display, its app or what it does.",
+            "menu_options": {
+              "all_match": "All values match",
+              "mismatch": "Something does not match"
+            }
+          },
+          "values_no_answer": {
+            "title": "Compare with the device",
+            "description": "The device did not answer. The values below are what ZHA stored earlier. To ask it again, wake it, for example with its button. Then open this notice again.\n\n**{device}** with `{file}` (revision {revision}):\n\n{entities}\n\nCompare each value with the device's display, its app or what it does.",
+            "menu_options": {
+              "all_match": "All values match",
+              "mismatch": "Something does not match"
+            }
+          },
+          "values_no_answer_mains": {
+            "title": "Compare with the device",
+            "description": "The device did not answer. The values below are what ZHA stored earlier. It cannot be reached right now. To ask it again, make sure it has power. Then open this notice again.\n\n**{device}** with `{file}` (revision {revision}):\n\n{entities}\n\nCompare each value with the device's display, its app or what it does.",
+            "menu_options": {
+              "all_match": "All values match",
+              "mismatch": "Something does not match"
+            }
+          },
+          "results": {
+            "title": "Mark what does not match",
+            "description": "**{device}** with `{file}` (revision {revision}):\n\n{entities}\n\nMark the values that do not match the device. Values you found right go into the first list.",
+            "data": {
+              "matches": "Match the device",
+              "wrong": "Do not match the device"
+            }
+          }
+        },
+        "progress": {
+          "asking": "xquirks asks the device for its values. This takes half a minute at most."
+        },
+        "error": {
+          "both": "Mark each value in one of the two lists only.",
+          "nothing": "Mark at least one value."
+        },
+        "abort": {
+          "not_loaded": "xquirks is not loaded. Reload it and try again.",
+          "zha_not_loaded": "ZHA is not loaded. Try again once it runs.",
+          "no_device": "None of the devices this notice names runs the file right now or ZHA does not have them. Try again later.",
+          "device_gone": "The device no longer runs this file or ZHA does not have it right now.",
+          "check_failed": "The check failed. The Home Assistant log says why.",
+          "no_entities": "The file adds no entity to this device that the check can show.",
+          "report": "Thank you! Values that match the device: {matches}. Not compared: {unchecked}.\n\n[Report the device test on GitHub]({link}): the form is filled in with the report. Check it and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+          "report_wrong": "Values that do not match the device: {wrong}. Matching: {matches}. Not compared: {unchecked}.\n\n[Report the wrong values on GitHub]({link}): the form is filled in with the report. Describe what the device shows, check the form and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+          "thumbs_up": "Thank you!\n\nA device test of this device with the same firmware is on GitHub already: [give it a thumbs-up]({link}). That counts as your confirmation (a GitHub account is needed). Confirmations so far: {count}. At {threshold}, the file can become verified for everyone.\n\nThe report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+          "confirmed": "Nothing to check: this file is verified now or enough people confirmed it on devices like yours. The notice is gone.",
+          "skipped": "Done. This notice does not come back for this revision of the file.",
+          "gone": "Nothing to do any more: this notice was closed in the meantime.",
+          "file_changed": "Nothing to check: the file was updated or removed since this notice came."
+        }
+      }
     },
     "self_check_off": {
       "title": "Quirk values look off: {quirk}",
-      "description": "{picture}xquirks watched `{file}` (revision {revision}) for a day after ZHA loaded it. This looked off:\n\n{devices}\n\n[Report it on GitHub]({link}): the form names the file and what looked off, without names or addresses of your devices. Add the device's diagnostics. **Check a device** under Settings > Devices & services > xquirks > Configure asks the device for its current values and makes a more detailed report from your comparison."
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Quirk values look off",
+            "description": "{picture}xquirks watched `{file}` (revision {revision}) for a day after ZHA loaded it or the device got new firmware. This looked off:\n\n{devices}\n\n**Check the device now** asks the device for its current values and makes a detailed report from your comparison. To report only what looked off, look at the [open reports]({reports}) first: if one fits, a thumbs-up or a comment there is enough. Otherwise [report it on GitHub]({link}). The form names the file and what looked off, without names or addresses of your devices. Add the device's diagnostics. **Do not check** closes this notice.",
+            "menu_options": {
+              "check": "Check the device now",
+              "skip": "Do not check"
+            }
+          },
+          "check": {
+            "title": "Which device",
+            "description": "Which device should xquirks ask for its current values? A Tuya device gets a data query, any other device a read of the values behind the quirk's entities. This changes nothing on the device. Wake a battery device first, for example with its button.",
+            "data": {
+              "device": "Device"
+            }
+          },
+          "values": {
+            "title": "Compare with the device",
+            "description": "**{device}** with `{file}` (revision {revision}):\n\n{entities}\n\nCompare each value with the device's display, its app or what it does.",
+            "menu_options": {
+              "all_match": "All values match",
+              "mismatch": "Something does not match"
+            }
+          },
+          "values_no_answer": {
+            "title": "Compare with the device",
+            "description": "The device did not answer. The values below are what ZHA stored earlier. To ask it again, wake it, for example with its button. Then open this notice again.\n\n**{device}** with `{file}` (revision {revision}):\n\n{entities}\n\nCompare each value with the device's display, its app or what it does.",
+            "menu_options": {
+              "all_match": "All values match",
+              "mismatch": "Something does not match"
+            }
+          },
+          "values_no_answer_mains": {
+            "title": "Compare with the device",
+            "description": "The device did not answer. The values below are what ZHA stored earlier. It cannot be reached right now. To ask it again, make sure it has power. Then open this notice again.\n\n**{device}** with `{file}` (revision {revision}):\n\n{entities}\n\nCompare each value with the device's display, its app or what it does.",
+            "menu_options": {
+              "all_match": "All values match",
+              "mismatch": "Something does not match"
+            }
+          },
+          "results": {
+            "title": "Mark what does not match",
+            "description": "**{device}** with `{file}` (revision {revision}):\n\n{entities}\n\nMark the values that do not match the device. Values you found right go into the first list.",
+            "data": {
+              "matches": "Match the device",
+              "wrong": "Do not match the device"
+            }
+          }
+        },
+        "progress": {
+          "asking": "xquirks asks the device for its values. This takes half a minute at most."
+        },
+        "error": {
+          "both": "Mark each value in one of the two lists only.",
+          "nothing": "Mark at least one value."
+        },
+        "abort": {
+          "not_loaded": "xquirks is not loaded. Reload it and try again.",
+          "zha_not_loaded": "ZHA is not loaded. Try again once it runs.",
+          "no_device": "None of the devices this notice names runs the file right now or ZHA does not have them. Try again later.",
+          "device_gone": "The device no longer runs this file or ZHA does not have it right now.",
+          "check_failed": "The check failed. The Home Assistant log says why.",
+          "no_entities": "The file adds no entity to this device that the check can show.",
+          "report": "Thank you! Values that match the device: {matches}. Not compared: {unchecked}.\n\n[Report the device test on GitHub]({link}): the form is filled in with the report. Check it and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+          "report_wrong": "Values that do not match the device: {wrong}. Matching: {matches}. Not compared: {unchecked}.\n\n[Report the wrong values on GitHub]({link}): the form is filled in with the report. Describe what the device shows, check the form and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+          "thumbs_up": "Thank you!\n\nA device test of this device with the same firmware is on GitHub already: [give it a thumbs-up]({link}). That counts as your confirmation (a GitHub account is needed). Confirmations so far: {count}. At {threshold}, the file can become verified for everyone.\n\nThe report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+          "confirmed": "Nothing to check: this file is verified now or enough people confirmed it on devices like yours. The notice is gone.",
+          "skipped": "Done. This notice does not come back for this revision of the file.",
+          "gone": "Nothing to do any more: this notice was closed in the meantime.",
+          "file_changed": "Nothing to check: the file was updated or removed since this notice came."
+        }
+      }
     },
     "self_check_unproven": {
       "title": "No values from the device yet: {quirk}",
-      "description": "{picture}xquirks watched `{file}` (revision {revision}) for a day after ZHA loaded it. None of the file's values came from the device, so xquirks cannot tell whether they are right:\n\n{devices}\n\n**Check a device** under Settings > Devices & services > xquirks > Configure asks the device for its current values. Compare them with the device. Your report helps everyone with this device."
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "No values from the device yet",
+            "description": "{picture}xquirks watched `{file}` (revision {revision}) for a day after ZHA loaded it or the device got new firmware. None of the file's values came from the device, so xquirks cannot tell whether they are right:\n\n{devices}\n\n**Check the device now** asks the device for its current values. Compare them with the device. Your report helps everyone with this device. **Do not check** closes this notice.",
+            "menu_options": {
+              "check": "Check the device now",
+              "skip": "Do not check"
+            }
+          },
+          "check": {
+            "title": "Which device",
+            "description": "Which device should xquirks ask for its current values? A Tuya device gets a data query, any other device a read of the values behind the quirk's entities. This changes nothing on the device. Wake a battery device first, for example with its button.",
+            "data": {
+              "device": "Device"
+            }
+          },
+          "values": {
+            "title": "Compare with the device",
+            "description": "**{device}** with `{file}` (revision {revision}):\n\n{entities}\n\nCompare each value with the device's display, its app or what it does.",
+            "menu_options": {
+              "all_match": "All values match",
+              "mismatch": "Something does not match"
+            }
+          },
+          "values_no_answer": {
+            "title": "Compare with the device",
+            "description": "The device did not answer. The values below are what ZHA stored earlier. To ask it again, wake it, for example with its button. Then open this notice again.\n\n**{device}** with `{file}` (revision {revision}):\n\n{entities}\n\nCompare each value with the device's display, its app or what it does.",
+            "menu_options": {
+              "all_match": "All values match",
+              "mismatch": "Something does not match"
+            }
+          },
+          "values_no_answer_mains": {
+            "title": "Compare with the device",
+            "description": "The device did not answer. The values below are what ZHA stored earlier. It cannot be reached right now. To ask it again, make sure it has power. Then open this notice again.\n\n**{device}** with `{file}` (revision {revision}):\n\n{entities}\n\nCompare each value with the device's display, its app or what it does.",
+            "menu_options": {
+              "all_match": "All values match",
+              "mismatch": "Something does not match"
+            }
+          },
+          "results": {
+            "title": "Mark what does not match",
+            "description": "**{device}** with `{file}` (revision {revision}):\n\n{entities}\n\nMark the values that do not match the device. Values you found right go into the first list.",
+            "data": {
+              "matches": "Match the device",
+              "wrong": "Do not match the device"
+            }
+          }
+        },
+        "progress": {
+          "asking": "xquirks asks the device for its values. This takes half a minute at most."
+        },
+        "error": {
+          "both": "Mark each value in one of the two lists only.",
+          "nothing": "Mark at least one value."
+        },
+        "abort": {
+          "not_loaded": "xquirks is not loaded. Reload it and try again.",
+          "zha_not_loaded": "ZHA is not loaded. Try again once it runs.",
+          "no_device": "None of the devices this notice names runs the file right now or ZHA does not have them. Try again later.",
+          "device_gone": "The device no longer runs this file or ZHA does not have it right now.",
+          "check_failed": "The check failed. The Home Assistant log says why.",
+          "no_entities": "The file adds no entity to this device that the check can show.",
+          "report": "Thank you! Values that match the device: {matches}. Not compared: {unchecked}.\n\n[Report the device test on GitHub]({link}): the form is filled in with the report. Check it and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+          "report_wrong": "Values that do not match the device: {wrong}. Matching: {matches}. Not compared: {unchecked}.\n\n[Report the wrong values on GitHub]({link}): the form is filled in with the report. Describe what the device shows, check the form and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+          "thumbs_up": "Thank you!\n\nA device test of this device with the same firmware is on GitHub already: [give it a thumbs-up]({link}). That counts as your confirmation (a GitHub account is needed). Confirmations so far: {count}. At {threshold}, the file can become verified for everyone.\n\nThe report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+          "confirmed": "Nothing to check: this file is verified now or enough people confirmed it on devices like yours. The notice is gone.",
+          "skipped": "Done. This notice does not come back for this revision of the file.",
+          "gone": "Nothing to do any more: this notice was closed in the meantime.",
+          "file_changed": "Nothing to check: the file was updated or removed since this notice came."
+        }
+      }
     }
   },
   "entity": {

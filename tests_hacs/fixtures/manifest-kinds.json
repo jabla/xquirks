@@ -28,6 +28,7 @@
     "TS0601"
    ]
   ],
+  "key": "c2e1dfc2",
   "left_out": 0,
   "left_out_gaps": 0,
   "left_out_lines": [],
@@ -177,6 +178,7 @@
     "TS0601"
    ]
   ],
+  "key": "a0127f87",
   "left_out": 0,
   "left_out_gaps": 0,
   "left_out_lines": [],
@@ -227,6 +229,7 @@
     "lumi.curtain.acn018"
    ]
   ],
+  "key": "02fb775e",
   "left_out": 0,
   "left_out_gaps": 0,
   "left_out_lines": [],
@@ -395,6 +398,7 @@
     "TS0601"
    ]
   ],
+  "key": "a4cf4565",
   "left_out": 0,
   "left_out_gaps": 0,
   "left_out_lines": [],
@@ -479,6 +483,7 @@
     "S1-TL"
    ]
   ],
+  "key": "869d770f",
   "left_out": 2,
   "left_out_gaps": 2,
   "left_out_lines": [
@@ -723,6 +728,7 @@
     "HS206Z"
    ]
   ],
+  "key": "157c0518",
   "left_out": 0,
   "left_out_gaps": 0,
   "left_out_lines": [],
@@ -731,8 +737,8 @@
   "path": "tuya",
   "picture": "HS206Z.png",
   "picture_sha256": null,
-  "revision": "23254cc3",
-  "sha256": "a0bbe1b29af0959c62f6afbf8453c367f0314f9f5e008e7aec5c9a9750d9b9eb",
+  "revision": "cfc86e03",
+  "sha256": "44cb3e59908fb26390b5c755140c89266ed995d5388cfa8835d49f193e3cdda4",
   "sources": {
    "zha-device-handlers": "2.4.1",
    "zigbee-herdsman-converters": "26.130.0"
@@ -770,6 +776,7 @@
     "TS0105"
    ]
   ],
+  "key": "5d8461c0",
   "left_out": 0,
   "left_out_gaps": 0,
   "left_out_lines": [],

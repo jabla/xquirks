@@ -129,14 +129,17 @@ async def test_a_held_back_file_gets_an_ignorable_notice_and_is_not_downloaded(h
     entry = await setup_entry(hass, repo_dir)
     assert listed(hass) == NOTHING and list(quirks_dir.iterdir()) == []
     notice = issue_of(hass, "held_back", "z2m_tuya_a.py")
-    assert not notice.is_fixable and notice.severity is ir.IssueSeverity.WARNING
-    placeholders = notice.translation_placeholders
-    assert render(STRINGS["issues"]["held_back"]["title"], placeholders) == "High-risk quirk held back: Tuya A"
-    assert render(STRINGS["issues"]["held_back"]["description"], placeholders) == (
+    assert notice.is_fixable and notice.severity is ir.IssueSeverity.WARNING
+    assert render(STRINGS["issues"]["held_back"]["title"], notice.translation_placeholders) == "High-risk quirk held back: Tuya A"
+    # A fixable notice shows its flow: the first page says what the notice found (opening it changes nothing).
+    flow = await start_fix(hass, notice)
+    assert render(STRINGS["issues"]["held_back"]["fix_flow"]["step"]["confirm"]["description"], flow["description_placeholders"]) == (
         "- Radar (\\_TZE200\\_aaaa TS0601), runs no quirk\n\n"
         "xquirks has `z2m_tuya_a.py` for it (generated, not verified on a device yet) but holds it back until it is verified on a device."
         " It controls a cover. It changes number settings. The device may accept a smaller range.\n\n"
-        "To get it anyway, turn on **Offer high-risk files** under Settings > Devices & services > xquirks > Configure > What xquirks offers. The next change list then offers it."
+        "**Offer high-risk files** turns on that option (Settings > Devices & services > xquirks > Configure > What xquirks offers)."
+        " It releases every high-risk file held back now:\n\n- `z2m_tuya_a.py` (Tuya A)\n\n"
+        "The change list then offers them and asks again before it installs anything. **Not now** puts this notice aside."
     )
     assert requested(aioclient_mock, "/quirks/z2m_tuya_a.py") == 0
     summary = entry.runtime_data.summary()

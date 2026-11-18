@@ -38,6 +38,20 @@ RETRY_INTERVAL = timedelta(minutes=15)
 FETCH_TIMEOUT = 30
 # A quirk file or manifest larger than this is refused.
 MAX_DOWNLOAD = 4 * 1024 * 1024
+# GitHub's issue search, asked without a token for the confirmations of a file's key (checks.py). Its own quota: 10
+# requests a minute per address.
+SEARCH_URL = "https://api.github.com/search/issues"
+# Hits per page, oldest first. Every variant of a file has its own issues with the file's key: the next page is asked
+# while a variant has no match yet (remote.async_search), SEARCH_PAGES pages at most (SEARCH_PAGES * SEARCH_PAGE stays
+# within confirm.MAX_ITEMS).
+SEARCH_PAGE = 10
+SEARCH_PAGES = 5
+# Seconds per page.
+SEARCH_TIMEOUT = 10
+# Bytes per page. Every hit carries its issue's body: up to 65,536 characters, and anyone can open an issue whose
+# characters JSON writes as `\u003c` (6 bytes each). With a title of 256 such characters a hit holds 394,752 bytes of
+# them, the rest of a hit (links, account, labels, reactions: about 3 KB) fits in the remaining 129,536 bytes.
+MAX_SEARCH = SEARCH_PAGE * 512 * 1024
 
 CONTENT_STORAGE_KEY = f"{DOMAIN}.content"
 CONTENT_STORAGE_VERSION = 1
