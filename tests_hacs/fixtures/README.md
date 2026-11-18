@@ -29,3 +29,5 @@ file only when the guard stops accepting it, for example in the pull request tha
 - `key` in each entry of `manifest-kinds.json` with a file: the key of that entry's own file version (CONTENT.md).
   The text of the frozen `hysyiot_hs206z` version is gone: that entry has the revision, sha256 and key of a later
   version.
+- `verify-bot-opened.json`, `verify-bot-edited.json`: issue events as GitHub sends them (fields trimmed) for
+  `test_verify_bot.py`: a submission of the "Device test" form and an edit of its title

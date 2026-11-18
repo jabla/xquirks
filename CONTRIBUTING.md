@@ -40,11 +40,13 @@ One "Device test" issue collects the tests of one device variant. Its title star
 ends with the manufacturer and model as zigpy reports them, the firmware and the file's key, for
 example `[_TZE200_abcd1234 | TS0601 | 0x00000046 | 1a2b3c4d]`. The first person whose values all match
 opens the prefilled form. Everyone after that gives the oldest open issue of the variant a thumbs-up:
-the notice's last dialog links it. The author and each thumbs-up count as one confirmation. Once a
-variant has enough of them ([CONTENT.md](CONTENT.md#confirmation-threshold)), the integration's
-notices no longer ask for a check of its devices. The file can then become "verified". An issue I do
-not accept, for example a test of another device, I close as "not planned": a closed issue counts for
-nothing.
+the notice's last dialog links it. A bot closes a newer issue of the same variant as a duplicate with
+a link to the older one. It also takes the end of the title from the form's "Device variant" field
+and puts it back when someone edits the title. The author and each thumbs-up count as one
+confirmation. Once a variant has enough of them ([CONTENT.md](CONTENT.md#confirmation-threshold)),
+the integration's notices no longer ask for a check of its devices. The file can then become
+"verified". An issue I do not accept, for example a test of another device, I close as "not
+planned": a closed issue counts for nothing.
 
 `tools/probe.py` collects what a device test needs from a shell, also without the integration. It can
 also check a setting by writing it. Run it from a clone of this repository. It needs Python's standard
