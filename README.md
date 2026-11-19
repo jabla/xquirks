@@ -73,10 +73,11 @@ the request and show its settings only when it next reports.
 
 For a day after that, it watches what these devices send: values outside a plausible range, values
 that never come, Tuya datapoints the file does not show. It only listens, it asks the devices nothing.
-Then one notice per file says whether its values look off, look fine or did not come at all. After a
-firmware update, it watches that device for another day unless its file is verified. A notice leaves
-out devices whose variant enough people confirmed. Apart from the search for confirmations (below),
-nothing leaves your Home Assistant by itself.
+Then one notice per file says if its values look off. A file that is not verified on a device yet also
+gets a notice when its values look fine or did not come at all. After a firmware update, it watches
+that device for another day unless its file is verified. A notice leaves out devices whose variant
+enough people confirmed. Apart from the search for confirmations (below), nothing leaves your Home
+Assistant by itself.
 
 **Check a device** under Settings > Devices & services > xquirks > Configure asks one device for its
 current values. You mark which match the device. The last dialog opens the "Device test" form on

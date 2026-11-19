@@ -41,6 +41,16 @@
           "matches": "Match the device",
           "wrong": "Do not match the device"
         }
+      },
+      "report": {
+        "title": "Report the device test",
+        "description": "Thank you! Values that match the device: {matches}. Not compared: {unchecked}.\n\n**Report** opens the form on GitHub. It is filled in with the report. Check it and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+        "submit": "Report"
+      },
+      "report_wrong": {
+        "title": "Report the wrong values",
+        "description": "Values that do not match the device: {wrong}. Matching: {matches}. Not compared: {unchecked}.\n\n**Report** opens the form on GitHub. It is filled in with the report. Describe what the device shows. Check the form and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
+        "submit": "Report"
       }
     },
     "progress": {
@@ -58,9 +68,7 @@
       "zha_not_loaded": "ZHA is not loaded. Try again once it runs.",
       "device_gone": "The device no longer runs a file from xquirks or ZHA does not have it right now.",
       "check_failed": "The check failed. The Home Assistant log says why.",
-      "no_entities": "The file adds no entity to this device that the check can show.",
-      "report": "Thank you! Values that match the device: {matches}. Not compared: {unchecked}.\n\n[Report the device test on GitHub]({link}): the form is filled in with the report. Check it and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics).",
-      "report_wrong": "Values that do not match the device: {wrong}. Matching: {matches}. Not compared: {unchecked}.\n\n[Report the wrong values on GitHub]({link}): the form is filled in with the report. Describe what the device shows, check the form and submit it. The report is also in the diagnostics of xquirks (three-dot menu of the integration > Download diagnostics)."
+      "no_entities": "The file adds no entity to this device that the check can show."
     }
   },
   "issues": {

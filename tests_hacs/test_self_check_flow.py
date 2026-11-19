@@ -5,7 +5,8 @@ search (short timeout) tells whether every device of the notice is past the thre
 device check is the options flow's: the device picker (limited to the notice's devices, skipped for one), the query
 with its progress step, the values. Then "All values match" (a thumbs-up on the open issue of the variant, else the
 filled-in form) or "Something does not match" (today's list, then the problem report). Each last page has one button that
-opens its link (no Close). No test reaches the network.
+opens its link (no Close). The notice closes only with that button (or with "Do not check"): the dialog's X on the last
+page leaves it, the next opening starts on its first page. No test reaches the network.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ from yarl import URL
 from . import integration
 from .conftest import REPOS, STRINGS, Zha, continue_fix, issue_of, issues_of, manager_of, start_fix
 from .integration import confirm, const, diagnostics, pictures
-from .test_checks import ACME_C, IEEE_A, IEEE_C, NAME, TUYA_A, LiveDevice, acme, checks, conclude, form_ids, installed, link_fields, radar, run_check, text
+from .test_checks import ACME_C, IEEE_A, IEEE_C, NAME, TUYA_A, LiveDevice, acme, checks, conclude, form_ids, installed, link_fields, radar, report_link, run_check, text
 from .test_confirm_search import (
     FIRMWARE_A,
     FIRMWARE_B,
@@ -211,6 +212,25 @@ async def test_the_first_page_shows_the_picture_of_this_run(hass: HomeAssistant,
     assert (await client.get(thumbnail.search(before).group(1))).status == 404
 
 
+@pytest.mark.parametrize("kind", [FINE, OFF])
+async def test_the_picture_of_a_self_check_is_fetched_without_another_notice(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, hass_client_no_auth,
+                                                                              kind: str):
+    """The change list fetches no picture. The self-check of an installed file names its devices in the notice it ends
+    with: its picture is fetched while it watches, so the notice's first page shows it although no other notice named
+    the file."""
+    picture = png(256, 256)
+    aioclient_mock.get(pictures.PICTURE_URL.format(name="A.png"), content=picture)
+    pin = hashlib.sha256(picture).hexdigest()
+    await notice(hass, zha, repo_dir, aioclient_mock, kind, manifest=keyed(tuya_a={"picture": "A.png", "picture_sha256": pin}))
+    fetched = [url for _method, url, _data, _headers in aioclient_mock.mock_calls if str(url).startswith("https://www.zigbee2mqtt.io/")]
+    assert len(fetched) == 1 and stored(hass, picture).exists()
+    flow = await start_fix(hass, issue_of(hass, kind))
+    shown = flow["description_placeholders"]["picture"]
+    assert pin in shown
+    client = await hass_client_no_auth()
+    assert (await client.get(re.search(r"!\[\]\((/api/xquirks/picture/[^)]+)\)", shown).group(1))).status == 200
+
+
 async def test_do_not_check_closes_the_notice_for_this_revision(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock):
     await notice(hass, zha, repo_dir, aioclient_mock)
     flow = await start_fix(hass, issue_of(hass, FINE))
@@ -269,8 +289,9 @@ async def test_an_unknown_search_goes_on_as_normal_and_ends_with_the_form(hass: 
     answers(device)
     flow = await values_page(hass)
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
-    assert gone(hass)
+    assert not gone(hass)
     assert link_fields(await click(hass, flow, "report"))["template"] == text.VERIFY_FORM
+    assert gone(hass)
 
 
 @pytest.mark.parametrize("thumbs", [2, 0])
@@ -430,9 +451,10 @@ async def test_all_values_match_with_an_open_issue_asks_for_a_thumbs_up(hass: Ho
     flow = await values_page(hass)
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
     assert flow["description_placeholders"] == {"count": "2", "threshold": "3"}
-    # Finished like a report: the notice goes for this revision, the report is in the diagnostics.
-    assert gone(hass) and len(manager_of(hass).checks.reports) == 1
+    # Finished like a report: the report is in the diagnostics. The notice goes with the button.
+    assert not gone(hass) and len(manager_of(hass).checks.reports) == 1
     assert await click(hass, flow, "thumbs_up") == ISSUE_LINK.format(number=42)
+    assert gone(hass)
     assert not await comes_back(hass, repo_dir)
 
 
@@ -587,58 +609,234 @@ async def test_looks_off_can_end_with_all_values_match(hass: HomeAssistant, zha:
     flow = await values_page(hass, OFF)
     flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
     assert last_page(flow) == "report"
+    assert not gone(hass, OFF)
+    await click(hass, flow, "report")
     assert gone(hass, OFF)
 
 
 # The last page
 
 
-async def last(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, step: str) -> dict:
-    """The flow of a looks-fine notice up to this last page."""
+async def last(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, step: str, kind: str = FINE) -> dict:
+    """The flow of a notice of this kind up to this last page."""
+    (device,), search = await notice(hass, zha, repo_dir, aioclient_mock, kind)
+    if step == "thumbs_up":
+        search.reply = answer(hit(42, title(FIRMWARE_A), thumbs=1))
+    answers(device)
+    return await to_last(hass, step, kind)
+
+
+async def to_last(hass: HomeAssistant, step: str, kind: str = FINE) -> dict:
+    """A new flow of the notice through the device check up to this last page."""
+    flow = await values_page(hass, kind)
+    if step == "report_wrong":
+        flow = await continue_fix(hass, flow, {"next_step_id": "mismatch"})
+        flow = await continue_fix(hass, flow, {"matches": ["1-humidity"], "wrong": ["1-temperature"]})
+    else:
+        flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
+    assert last_page(flow) == step, flow
+    return flow
+
+
+def still_open(hass: HomeAssistant, kind: str = FINE) -> bool:
+    """The notice is there as the user can open it: fixable, not ignored, its self-check not closed."""
+    issue = issue_of(hass, kind)
+    return issue.is_fixable and issue.dismissed_version is None and not manager_of(hass).checks.observations["z2m_tuya_a.py"].get("closed")
+
+
+def x(hass: HomeAssistant, flow: dict) -> None:
+    """The dialog's X: Home Assistant deletes a flow that did not end."""
+    hass.data["repairs"]["flow_manager"].async_abort(flow["flow_id"])
+
+
+@pytest.mark.parametrize("kind", [FINE, UNPROVEN, OFF])
+@pytest.mark.parametrize("step", LAST_PAGES)
+async def test_the_last_page_keeps_the_report_and_leaves_the_notice_open(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, step: str, kind: str):
+    """The check is over when the last page shows: the report is kept for the diagnostics, the check counts as done. The
+    notice stays until the page's button is clicked."""
+    flow = await last(hass, zha, repo_dir, aioclient_mock, step, kind)
+    checks_ = manager_of(hass).checks
+    assert still_open(hass, kind) and len(checks_.reports) == 1 and self_check(hass)["device_check_done"]
+    # Asked for the page again (a GET of the flow): the same page, nothing opened, nothing closed.
+    again = await continue_fix(hass, flow, None)
+    assert last_page(again) == step and again["description_placeholders"] == flow["description_placeholders"]
+    assert still_open(hass, kind) and len(checks_.reports) == 1
+
+
+@pytest.mark.parametrize("step", LAST_PAGES)
+async def test_the_button_closes_the_notice_and_opens_its_link(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, step: str):
+    """A page without fields shows one button with its own text (an abort page always shows Close). It closes the notice
+    for this revision and opens the link (the form or the device test of the variant) as an external step: Home
+    Assistant opens it in a new tab and offers it as a button too. The dialog stays on that step until its X deletes the
+    flow, which changes nothing more."""
+    flow = await last(hass, zha, repo_dir, aioclient_mock, step)
+    url = await click(hass, flow, step)
+    if step == "thumbs_up":
+        assert url == ISSUE_LINK.format(number=42)
+    else:
+        assert url.startswith(f"https://github.com/{const.REPOSITORY}/issues/new?")
+        assert link_fields(url)["template"] == (text.PROBLEM_FORM if step == "report_wrong" else text.VERIFY_FORM)
+    checks_ = manager_of(hass).checks
+    assert gone(hass) and checks_.observations["z2m_tuya_a.py"]["closed"] is True and len(checks_.reports) == 1
+    before = checks_.summary()
+    # Clicked again (a double submit), asked for again, or sent anything: the same external step, nothing more.
+    for user_input in ({}, None, {"anything": 1}):
+        opened = await continue_fix(hass, flow, user_input)
+        assert opened["type"] is FlowResultType.EXTERNAL_STEP and opened["step_id"] == "open" and opened["url"] == url
+    x(hass, flow)
+    with pytest.raises(UnknownFlow):
+        await continue_fix(hass, flow, {})
+    assert checks_.summary() == before and len(checks_.reports) == 1 and self_check(hass)["device_check_done"]
+    assert not await comes_back(hass, repo_dir)
+
+
+@pytest.mark.parametrize("step", LAST_PAGES)
+async def test_closing_the_dialog_on_the_last_page_leaves_the_notice_open(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, step: str):
+    """The dialog's X on the last page deletes the flow: the notice stays (through a refresh and a restart), so does the
+    report. Opened again, the notice starts on its first page and the device is asked again. Its button then closes it."""
+    flow = await last(hass, zha, repo_dir, aioclient_mock, step)
+    x(hass, flow)
+    with pytest.raises(UnknownFlow):
+        await continue_fix(hass, flow, {})
+    assert still_open(hass) and len(manager_of(hass).checks.reports) == 1 and self_check(hass)["device_check_done"]
+    assert await comes_back(hass, repo_dir)
+    assert still_open(hass) and len(manager_of(hass).checks.reports) == 1
+    first = await start_fix(hass, issue_of(hass, FINE))
+    assert first["type"] is FlowResultType.MENU and first["step_id"] == FIRST and first["menu_options"] == ["check", "skip"]
+    x(hass, first)
+    flow = await to_last(hass, step)
+    assert still_open(hass) and len(manager_of(hass).checks.reports) == 2
+    await click(hass, flow, step)
+    assert gone(hass) and not await comes_back(hass, repo_dir)
+
+
+# What the step before sends, sent again: its menu choice, or the list after "Something does not match".
+AGAIN = {"all_match": {"next_step_id": "all_match"}, "results": {"matches": ["1-humidity"], "wrong": ["1-temperature"]}}
+
+
+@pytest.mark.parametrize(("step", "again"), [("report", "all_match"), ("thumbs_up", "all_match"), ("report_wrong", "results")])
+async def test_the_step_before_sent_again_is_no_click(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, step: str, again: str):
+    """A doubled or retried POST of the step before reaches the last page (a page without fields takes any input). It
+    shows the page again: only the button's empty input is the click."""
+    flow = await last(hass, zha, repo_dir, aioclient_mock, step)
+    for _ in range(2):
+        shown = await continue_fix(hass, flow, AGAIN[again])
+        assert last_page(shown) == step and shown["description_placeholders"] == flow["description_placeholders"], shown
+    assert still_open(hass) and len(manager_of(hass).checks.reports) == 1
+    await click(hass, shown, step)
+    assert gone(hass)
+
+
+async def test_a_double_submit_closes_once_and_opens_one_link(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock):
+    """Two clicks on the button at once: the first closes the notice and answers the external step, the second finds the
+    flow on that step and gets the same, nothing is closed twice."""
+    flow = await last(hass, zha, repo_dir, aioclient_mock, "report")
+    with patch.object(checks.Checks, "close_notice", autospec=True, side_effect=checks.Checks.close_notice) as closing:
+        first, second = await asyncio.gather(continue_fix(hass, flow, {}), continue_fix(hass, flow, {}))
+    assert first["type"] is second["type"] is FlowResultType.EXTERNAL_STEP and first["url"] == second["url"]
+    assert closing.call_count == 1 and gone(hass)
+
+
+async def _skipped_elsewhere(hass: HomeAssistant, zha: Zha, repo_dir: Path, device: LiveDevice, step: str) -> None:
+    other = await continue_fix(hass, await start_fix(hass, issue_of(hass, FINE)), {"next_step_id": "skip"})
+    assert other["reason"] == "skipped"
+
+
+async def _clicked_elsewhere(hass: HomeAssistant, zha: Zha, repo_dir: Path, device: LiveDevice, step: str) -> None:
+    await click(hass, await to_last(hass, step), step)
+
+
+async def _checked_in_the_options(hass: HomeAssistant, zha: Zha, repo_dir: Path, device: LiveDevice, step: str) -> None:
+    result = await run_check(hass, hass.config_entries.async_entries(const.DOMAIN)[0], device.device_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"matches": ["1-temperature"], "wrong": []})
+    await report_link(hass, result)
+
+
+async def _verified_now(hass: HomeAssistant, zha: Zha, repo_dir: Path, device: LiveDevice, step: str) -> None:
+    prepare(repo_dir, keyed(tuya_a={"status": "verified"}), threshold=3)
+    REPOS[repo_dir].publish()
+    await manager_of(hass).async_check()
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+
+async def _deleted(hass: HomeAssistant, zha: Zha, repo_dir: Path, device: LiveDevice, step: str) -> None:
+    await _notice_deleted(hass, zha, repo_dir, device)
+
+
+async def _updated(hass: HomeAssistant, zha: Zha, repo_dir: Path, device: LiveDevice, step: str) -> None:
+    await _update_file(hass, zha, repo_dir, device)
+
+
+async def _removed(hass: HomeAssistant, zha: Zha, repo_dir: Path, device: LiveDevice, step: str) -> None:
+    await _remove_file(hass, zha, repo_dir, device)
+
+
+# What closes or changes the notice between its last page and the click, the reason the click then ends with, and the
+# reports kept by then (another check kept one more).
+CLICK_STALE = {"skipped_elsewhere": (_skipped_elsewhere, "gone", 1), "clicked_elsewhere": (_clicked_elsewhere, "gone", 2),
+               "checked_in_the_options": (_checked_in_the_options, "gone", 2), "verified_now": (_verified_now, "gone", 1),
+               "notice_deleted": (_deleted, "gone", 1), "file_updated": (_updated, "file_changed", 1), "file_removed": (_removed, "file_changed", 1)}
+
+
+@pytest.mark.parametrize("step", ["report", "thumbs_up"])
+@pytest.mark.parametrize("event", list(CLICK_STALE))
+async def test_a_click_after_the_notice_closed_or_changed_opens_nothing(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, event: str, step: str):
+    """The notice was closed in another window (its button, "Do not check", the options check), its file is verified now,
+    updated or removed: the click ends with the reason, opens no second form, closes nothing."""
     (device,), search = await notice(hass, zha, repo_dir, aioclient_mock)
     if step == "thumbs_up":
         search.reply = answer(hit(42, title(FIRMWARE_A), thumbs=1))
     answers(device)
-    flow = await values_page(hass)
-    if step == "report_wrong":
-        flow = await continue_fix(hass, flow, {"next_step_id": "mismatch"})
-        return await continue_fix(hass, flow, {"matches": ["1-humidity"], "wrong": ["1-temperature"]})
-    return await continue_fix(hass, flow, {"next_step_id": "all_match"})
+    flow = await to_last(hass, step)
+    change, reason, reports = CLICK_STALE[event]
+    await change(hass, zha, repo_dir, device, step)
+    before = manager_of(hass).checks.summary()
+    result = await continue_fix(hass, flow, {})
+    assert result["type"] is FlowResultType.ABORT and result["reason"] == reason
+    assert manager_of(hass).checks.summary() == before and len(manager_of(hass).checks.reports) == reports
+    assert issues_of(hass, FINE) == []
 
 
-@pytest.mark.parametrize("step", LAST_PAGES)
-@pytest.mark.parametrize("clicked", [True, False], ids=["clicked", "closed"])
-async def test_the_last_page_has_one_button_that_opens_its_link(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, step: str, clicked: bool):
-    """A page without fields shows one button with its own text (an abort page always shows Close). The check is over
-    when the page shows: the notice is gone, the report kept. The button opens the link (the form or the device test of
-    the variant) as an external step: Home Assistant opens it in a new tab and offers it as a button too. The dialog
-    stays on that step until its X closes it, which deletes the flow. Closing it on either page changes nothing more."""
-    flow = await last(hass, zha, repo_dir, aioclient_mock, step)
-    assert last_page(flow) == step
-    checks_ = manager_of(hass).checks
-    assert gone(hass) and len(checks_.reports) == 1
-    before = checks_.summary()
-    # Asked for the page again (a GET of the flow): the same page, nothing opened.
-    again = await continue_fix(hass, flow, None)
-    assert last_page(again) == step and again["description_placeholders"] == flow["description_placeholders"]
-    if clicked:
-        url = await click(hass, again, step)
-        if step == "thumbs_up":
-            assert url == ISSUE_LINK.format(number=42)
-        else:
-            assert url.startswith(f"https://github.com/{const.REPOSITORY}/issues/new?")
-            assert link_fields(url)["template"] == (text.PROBLEM_FORM if step == "report_wrong" else text.VERIFY_FORM)
-        # Asked for again, or sent anything: the same external step (no event for the frontend).
-        for user_input in (None, {"anything": 1}):
-            opened = await continue_fix(hass, flow, user_input)
-            assert opened["type"] is FlowResultType.EXTERNAL_STEP and opened["step_id"] == "open" and opened["url"] == url
-    # The dialog's X: Home Assistant deletes a flow that did not end.
-    hass.data["repairs"]["flow_manager"].async_abort(flow["flow_id"])
+async def test_a_click_after_the_device_left_still_closes_and_opens(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock):
+    """The link needs no device: the notice stands, the button closes it."""
+    (device,), _search = await notice(hass, zha, repo_dir, aioclient_mock)
+    answers(device)
+    flow = await to_last(hass, "report")
+    await _device_leaves(hass, zha, repo_dir, device)
+    assert still_open(hass)
+    await click(hass, flow, "report")
+    assert gone(hass)
+
+
+async def test_a_click_while_the_entry_is_unloaded_leaves_the_notice(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock):
+    flow = await last(hass, zha, repo_dir, aioclient_mock, "report")
+    entry = hass.config_entries.async_entries(const.DOMAIN)[0]
+    await hass.config_entries.async_unload(entry.entry_id)
+    result = await continue_fix(hass, flow, {})
+    assert result["type"] is FlowResultType.ABORT and result["reason"] == "not_loaded"
+    await restart_with(hass, entry, repo_dir)
+    assert still_open(hass) and len(manager_of(hass).checks.reports) == 1
+
+
+@pytest.mark.parametrize("how", ["restart", "reload"])
+async def test_a_restart_between_the_last_page_and_the_click(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, how: str):
+    """A restart of Home Assistant ends every flow: the button of a last page still open in the browser reaches no flow
+    (Home Assistant answers 404). The notice stays, the report and the check done stay stored, the next opening starts on
+    the first page. A reload of the entry alone keeps the flow: its button closes the notice of the reloaded entry."""
+    flow = await last(hass, zha, repo_dir, aioclient_mock, "report")
+    entry = hass.config_entries.async_entries(const.DOMAIN)[0]
+    if how == "restart":
+        x(hass, flow)
+    await restart_with(hass, entry, repo_dir)
+    assert still_open(hass) and len(manager_of(hass).checks.reports) == 1 and self_check(hass)["device_check_done"]
+    if how == "reload":
+        await click(hass, flow, "report")
+        assert gone(hass)
+        return
     with pytest.raises(UnknownFlow):
         await continue_fix(hass, flow, {})
-    assert checks_.summary() == before and len(checks_.reports) == 1
-    assert gone(hass) and self_check(hass)["device_check_done"]
-    assert not await comes_back(hass, repo_dir)
+    first = await start_fix(hass, issue_of(hass, FINE))
+    assert first["type"] is FlowResultType.MENU and first["step_id"] == FIRST
 
 
 # What a search answer may carry
@@ -798,15 +996,23 @@ async def test_a_step_out_of_order_changes_nothing(hass: HomeAssistant, zha: Zha
 
 
 async def test_two_flows_for_one_notice(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock):
+    """Both reach their last page (two reports kept): the first click closes the notice and opens its link, the second
+    ends with "gone" (no second form for the same notice). A third flow on its values ends the same way."""
     (device,), _search = await notice(hass, zha, repo_dir, aioclient_mock)
     answers(device)
-    first, second = await values_page(hass), await values_page(hass)
-    assert first["flow_id"] != second["flow_id"]
+    first, second, third = await values_page(hass), await values_page(hass), await values_page(hass)
+    assert len({first["flow_id"], second["flow_id"], third["flow_id"]}) == 3
     first = await continue_fix(hass, first, {"next_step_id": "all_match"})
-    assert last_page(first) == "report"
     second = await continue_fix(hass, second, {"next_step_id": "all_match"})
-    assert second["type"] is FlowResultType.ABORT and second["reason"] == "gone"
-    assert len(manager_of(hass).checks.reports) == 1
+    assert last_page(first) == last_page(second) == "report" and len(manager_of(hass).checks.reports) == 2
+    assert still_open(hass)
+    await click(hass, second, "report")
+    assert gone(hass)
+    first = await continue_fix(hass, first, {})
+    assert first["type"] is FlowResultType.ABORT and first["reason"] == "gone"
+    third = await continue_fix(hass, third, {"next_step_id": "all_match"})
+    assert third["type"] is FlowResultType.ABORT and third["reason"] == "gone"
+    assert len(manager_of(hass).checks.reports) == 2
 
 
 async def test_do_not_check_in_one_flow_ends_the_other(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock):
@@ -835,8 +1041,7 @@ async def test_the_options_check_keeps_its_picker_and_names_the_variant_in_the_f
     result = await run_check(hass, entry, device.device_id)
     assert result["step_id"] == "results"
     result = await hass.config_entries.options.async_configure(result["flow_id"], {"matches": ["1-temperature"], "wrong": []})
-    assert result["type"] is FlowResultType.ABORT and result["reason"] == "report"
-    assert link_fields(result["description_placeholders"]["link"])["title"] == title(FIRMWARE_A)
+    assert link_fields(await report_link(hass, result))["title"] == title(FIRMWARE_A)
 
 
 async def test_an_options_check_of_a_zcl_file_is_unchanged(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock):
@@ -847,6 +1052,87 @@ async def test_an_options_check_of_a_zcl_file_is_unchanged(hass: HomeAssistant, 
     entry = hass.config_entries.async_entries(const.DOMAIN)[0]
     result = await run_check(hass, entry, device.device_id)
     assert result["type"] is FlowResultType.FORM and result["step_id"] == "results"
+
+
+def options(hass: HomeAssistant) -> object:
+    return hass.config_entries.options
+
+
+@pytest.mark.parametrize("step", ["report", "report_wrong"])
+async def test_the_options_check_ends_with_the_same_last_page_and_its_button_closes_the_notice(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock,
+                                                                                               step: str):
+    """The options check of a device whose file has a notice: its last page is the notice's (a page without fields, one
+    button, the report kept when it shows). The dialog's X there leaves the notice. The button closes it and opens the
+    form as an external step. Clicked again: the same step."""
+    (device,), _search = await notice(hass, zha, repo_dir, aioclient_mock)
+    answers(device)
+    entry = hass.config_entries.async_entries(const.DOMAIN)[0]
+    answered = {"matches": ["1-humidity"], "wrong": ["1-temperature"]} if step == "report_wrong" else {"matches": ["1-temperature"], "wrong": []}
+    for clicked in (False, True):
+        result = await run_check(hass, entry, device.device_id)
+        result = await options(hass).async_configure(result["flow_id"], answered)
+        assert result["type"] is FlowResultType.FORM and result["step_id"] == step and result["data_schema"] is None
+        assert set(result["description_placeholders"]) == ({"wrong", "matches", "unchecked"} if step == "report_wrong" else {"matches", "unchecked"})
+        assert still_open(hass) and self_check(hass)["device_check_done"]
+        again = await options(hass).async_configure(result["flow_id"])
+        assert again["type"] is FlowResultType.FORM and again["step_id"] == step and still_open(hass)
+        if not clicked:
+            options(hass).async_abort(result["flow_id"])
+            assert still_open(hass)
+    url = await report_link(hass, result, step)
+    assert link_fields(url)["template"] == (text.PROBLEM_FORM if step == "report_wrong" else text.VERIFY_FORM)
+    assert gone(hass) and len(manager_of(hass).checks.reports) == 2
+    for user_input in ({}, None):
+        opened = await options(hass).async_configure(result["flow_id"], user_input)
+        assert opened["type"] is FlowResultType.EXTERNAL_STEP and opened["step_id"] == "open" and opened["url"] == url
+    assert not await comes_back(hass, repo_dir)
+
+
+@pytest.mark.parametrize("step", ["report", "report_wrong"])
+async def test_the_options_list_sent_again_is_no_click(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, step: str):
+    """The list sent again (a doubled or retried POST) reaches the last page: the page again, the notice stays."""
+    (device,), _search = await notice(hass, zha, repo_dir, aioclient_mock)
+    answers(device)
+    entry = hass.config_entries.async_entries(const.DOMAIN)[0]
+    answered = AGAIN["results"] if step == "report_wrong" else {"matches": ["1-temperature"], "wrong": []}
+    result = await run_check(hass, entry, device.device_id)
+    result = await options(hass).async_configure(result["flow_id"], answered)
+    for _ in range(2):
+        shown = await options(hass).async_configure(result["flow_id"], answered)
+        assert shown["type"] is FlowResultType.FORM and shown["step_id"] == step and shown["data_schema"] is None, shown
+    assert still_open(hass) and len(manager_of(hass).checks.reports) == 1
+    await report_link(hass, shown, step)
+    assert gone(hass)
+
+
+async def test_the_options_button_opens_the_form_when_the_notice_went_meanwhile(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock):
+    """The options check belongs to no notice: its button opens the form also after the notice closed elsewhere, and
+    closes nothing more. While the entry is unloaded it ends with "not loaded"."""
+    (device,), _search = await notice(hass, zha, repo_dir, aioclient_mock)
+    answers(device)
+    entry = hass.config_entries.async_entries(const.DOMAIN)[0]
+    result = await run_check(hass, entry, device.device_id)
+    result = await options(hass).async_configure(result["flow_id"], {"matches": ["1-temperature"], "wrong": []})
+    await _skipped_elsewhere(hass, zha, repo_dir, device, "report")
+    assert link_fields(await report_link(hass, result))["template"] == text.VERIFY_FORM
+    result = await run_check(hass, entry, device.device_id)
+    result = await options(hass).async_configure(result["flow_id"], {"matches": ["1-temperature"], "wrong": []})
+    await hass.config_entries.async_unload(entry.entry_id)
+    result = await options(hass).async_configure(result["flow_id"], {})
+    assert result["type"] is FlowResultType.ABORT and result["reason"] == "not_loaded"
+
+
+@pytest.mark.parametrize("step", ["report", "report_wrong", "open"])
+async def test_an_options_step_out_of_order_changes_nothing(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, step: str):
+    """Reached without the last page (Home Assistant lets no flow skip to a step): the check failed, nothing closed."""
+    await notice(hass, zha, repo_dir, aioclient_mock)
+    entry = hass.config_entries.async_entries(const.DOMAIN)[0]
+    result = await options(hass).async_init(entry.entry_id)
+    handler = options(hass)._progress[result["flow_id"]]
+    for user_input in (None, {}):
+        found = await getattr(handler, f"async_step_{step}")(user_input)
+        assert found["type"] is FlowResultType.ABORT and found["reason"] == "check_failed"
+    assert still_open(hass) and manager_of(hass).checks.reports == []
 
 
 # The texts

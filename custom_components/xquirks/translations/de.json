@@ -41,6 +41,16 @@
           "matches": "Stimmen mit dem Gerät überein",
           "wrong": "Stimmen nicht mit dem Gerät überein"
         }
+      },
+      "report": {
+        "title": "Gerätetest melden",
+        "description": "Danke! Werte, die mit dem Gerät übereinstimmen: {matches}. Nicht verglichen: {unchecked}.\n\n**Melden** öffnet das Formular auf GitHub. Es ist mit dem Bericht ausgefüllt. Prüfe es und sende es ab. Der Bericht steht auch in den Diagnosedaten von xquirks (Drei-Punkte-Menü der Integration > Diagnosedaten herunterladen).",
+        "submit": "Melden"
+      },
+      "report_wrong": {
+        "title": "Falsche Werte melden",
+        "description": "Werte, die nicht mit dem Gerät übereinstimmen: {wrong}. Übereinstimmend: {matches}. Nicht verglichen: {unchecked}.\n\n**Melden** öffnet das Formular auf GitHub. Es ist mit dem Bericht ausgefüllt. Beschreibe, was das Gerät zeigt, prüfe das Formular und sende es ab. Der Bericht steht auch in den Diagnosedaten von xquirks (Drei-Punkte-Menü der Integration > Diagnosedaten herunterladen).",
+        "submit": "Melden"
       }
     },
     "progress": {
@@ -58,9 +68,7 @@
       "zha_not_loaded": "ZHA ist nicht geladen. Versuche es noch einmal, sobald es läuft.",
       "device_gone": "Das Gerät verwendet keine Datei von xquirks mehr oder ZHA hat es gerade nicht.",
       "check_failed": "Die Prüfung ist fehlgeschlagen. Das Home-Assistant-Protokoll nennt den Grund.",
-      "no_entities": "Die Datei fügt diesem Gerät keine Entität hinzu, die die Prüfung zeigen kann.",
-      "report": "Danke! Werte, die mit dem Gerät übereinstimmen: {matches}. Nicht verglichen: {unchecked}.\n\n[Gerätetest auf GitHub melden]({link}): Das Formular ist mit dem Bericht ausgefüllt. Prüfe es und sende es ab. Der Bericht steht auch in den Diagnosedaten von xquirks (Drei-Punkte-Menü der Integration > Diagnosedaten herunterladen).",
-      "report_wrong": "Werte, die nicht mit dem Gerät übereinstimmen: {wrong}. Übereinstimmend: {matches}. Nicht verglichen: {unchecked}.\n\n[Falsche Werte auf GitHub melden]({link}): Das Formular ist mit dem Bericht ausgefüllt. Beschreibe, was das Gerät zeigt, prüfe das Formular und sende es ab. Der Bericht steht auch in den Diagnosedaten von xquirks (Drei-Punkte-Menü der Integration > Diagnosedaten herunterladen)."
+      "no_entities": "Die Datei fügt diesem Gerät keine Entität hinzu, die die Prüfung zeigen kann."
     }
   },
   "issues": {
