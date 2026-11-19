@@ -1,0 +1,34 @@
+name: Device test issues
+
+# The bot of the "Device test" issues (label verify), tools/verify_bot.py: a new issue gets the end of its title
+# from the form's "Device variant" field and closes as a duplicate when an older open issue has the same end. A
+# title edit keeps that end. The script reads the event from $GITHUB_EVENT_PATH: no event text in a run line. Its
+# edits use the workflow token, which starts no new run. No concurrency group: a group keeps one waiting run and
+# cancels the one before it, which could drop the run of an edit that removed the end of a title.
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+
+permissions:
+  issues: write
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  verify:
+    name: Title and duplicates
+    if: ${{ contains(github.event.issue.labels.*.name, 'verify') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The default branch: an issue event runs the workflow and the script of the default branch.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: python3 -I tools/verify_bot.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
