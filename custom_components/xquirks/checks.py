@@ -1100,6 +1100,11 @@ class Checks:
             found += f"_{device}_{hashlib.sha256(observation['firmware'].encode(errors='replace')).hexdigest()[:8]}"
         return found
 
+    def notice_files(self) -> set[str]:
+        """The files of the self-checks that watch (a notice may end them) or whose notice is open: the first page of the
+        notice shows the picture of their device (manager._named_files fetches it while they watch)."""
+        return {name for name, obs in self._all() if not obs.get("done") or (obs.get("notice") and not obs.get("closed"))}
+
     def keep_ids(self) -> frozenset[str]:
         """The self-check notices that stay: their file is still in the folder at their revision (a firmware watch's: its
         device still runs it)."""
@@ -1137,7 +1142,8 @@ class Checks:
     @callback
     def close_notice(self, name: str, observation: dict[str, Any]) -> None:
         """The notice of a concluded self-check goes for good: no refresh keeps it (keep_ids), its file revision gets no
-        other (notified). After a device check, a fix flow's "Do not check" and "already confirmed"."""
+        other (notified). After the button of a device check's last page (close_checked), a fix flow's "Do not check" and
+        "already confirmed"."""
         if not observation.get("done"):
             return
         self._drop_notice(name, observation)
@@ -1362,31 +1368,54 @@ class Checks:
             await asyncio.sleep(CHECK_STEP)
             waited += CHECK_STEP
 
-    @callback
-    def finish_check(self, result: CheckResult, matches: set[str], wrong: set[str]) -> tuple[str, str]:
-        """The user's answers: the report (kept for the diagnostics) and the link to the form it goes to.
+    def _answered(self, result: CheckResult) -> list[dict[str, Any]]:
+        """The self-checks a device check answers now: the file's at the revision the device ran, and the firmware watch of
+        the device checked at it (not those of the file's other devices)."""
+        found = []
+        observation = self.observations.get(result.file)
+        if observation is not None and observation["revision"] == result.revision:
+            found.append(observation)
+        record = self.firmware.get(result.device_id)
+        watch = record.get("watch") if record is not None else None
+        if watch is not None and watch["file"] == result.file and watch["revision"] == result.revision:
+            found.append(watch)
+        return found
 
-        A finished check takes the self-check notice of its file away: it did what the notice asked.
-        A self-check that still watches goes on and ends with its notice: the check compared one
-        moment, the self-check sees the rest of the day (values that come later, or never)."""
+    @staticmethod
+    def _which(observation: dict[str, Any]) -> tuple[object, ...]:
+        """Which self-check this is: a later one of the same file and device has another start (a firmware watch of a newer
+        firmware, the file installed again), also after a restart (the start is stored)."""
+        return observation.get("firmware"), observation["revision"], observation["started"]
+
+    @callback
+    def finish_check(self, result: CheckResult, matches: set[str], wrong: set[str]) -> tuple[str, str, frozenset[tuple[object, ...]]]:
+        """The user's answers, when the last page of the check shows: the report (kept for the diagnostics), the link to the
+        form it goes to and which self-checks it answered (for close_checked).
+
+        The self-checks it answers count it as done ("checked", the diagnostics' device_check_done) from here: the report
+        is kept, whether the page's button is clicked or not. Their notices stay until the button (close_checked)."""
         answers = {row.suffix: ("no" if row.suffix in wrong else "yes" if row.suffix in matches else "not checked") for row in result.rows}
         report = text.check_report(result, answers)
         # The form's title names the variant as the confirmation search compares it.
         url = text.check_url(self.manager.entry_of(result.file), result, answers, HA_VERSION, self.check_key(result.file, result.revision))
         self.reports = [*self.reports, {"time": result.time, "file": result.file, "revision": result.revision or "", "device": f"{result.manufacturer} {result.model}",
                                         "report": report}][-MAX_REPORTS:]
-        observation = self.observations.get(result.file)
-        if observation is not None and observation["revision"] == result.revision:
+        answered = self._answered(result)
+        for observation in answered:
             observation["checked"] = True
-            self.close_notice(result.file, observation)
-        # The firmware watch of the device checked (not those of the file's other devices).
-        record = self.firmware.get(result.device_id)
-        watch = record.get("watch") if record is not None else None
-        if watch is not None and watch["file"] == result.file and watch["revision"] == result.revision:
-            watch["checked"] = True
-            self.close_notice(result.file, watch)
         self._save()
-        return report, url
+        return report, url, frozenset(self._which(observation) for observation in answered)
+
+    @callback
+    def close_checked(self, result: CheckResult, answered: frozenset[tuple[object, ...]]) -> None:
+        """The button of the check's last page (it opens the form or the device test): the notices of the self-checks the
+        check answered when the page showed (finish_check) go, it did what they asked. One that started since (the device
+        got a newer firmware) keeps its notice: the check never saw it. A self-check that still watches goes on and ends
+        with its notice: the check compared one moment, the self-check sees the rest of the day (values that come later,
+        or never)."""
+        for observation in self._answered(result):
+            if self._which(observation) in answered:
+                self.close_notice(result.file, observation)
 
     # Diagnostics
 
@@ -1400,7 +1429,8 @@ class Checks:
                 "started": dt_util.utc_from_timestamp(observation["started"]).isoformat(timespec="seconds"),
                 "observed_hours": round(observation["observed"] / 3600, 1),
                 "result": observation.get("done") or "watching",
-                # A notice closed without a check ("Do not check", already confirmed) is no check.
+                # A check that reached its report (finish_check), whether its notice closed or not. A notice closed without a
+                # check ("Do not check", already confirmed) is no check.
                 "device_check_done": bool(observation.get("checked")),
                 "devices": [
                     {

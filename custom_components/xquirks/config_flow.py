@@ -1,8 +1,8 @@
 """Config flow: one entry, no settings needed. Options: the devices xquirks leaves alone and whether
 it offers high-risk files that are not verified on a device, and the device check: one device that
 runs an xquirks file is asked for its current values, the user marks what matches the device and gets
-a report with a prefilled issue link (checks.py). The fix flow of a self-check notice uses the same
-steps (DeviceCheck, repairs.py)."""
+a report with a button that opens the prefilled issue (checks.py). The fix flow of a self-check notice
+uses the same steps (DeviceCheck, repairs.py)."""
 
 from __future__ import annotations
 
@@ -56,9 +56,16 @@ class DeviceCheck:
     which device ("check"), asking it with a progress dialog ("ask"), what it shows ("results": the user marks what
     matches the device and what does not), the report with its prefilled issue link.
 
+    The last page (the report "report" or the problem report "report_wrong") keeps the report when it shows
+    (Checks.finish_check). It is a page without fields whose one button opens its link: Home Assistant shows Close on an
+    abort page and has no link button. The button answers with an external step (step "open"): the frontend opens the
+    link in a new tab and offers it as a button in case the browser blocked that. The dialog stays there until its X
+    deletes the flow. Only the button closes the notices the check answers (_clicked, Checks.close_checked): the X on the
+    last page leaves them.
+
     A flow that uses them gives the checks (_checks). It may limit the devices (_candidates), pick the only one without
-    asking (PICK_ONE), end a step that went stale (_stale), show a page of its own before the list (RESULTS) and end
-    otherwise (_finish)."""
+    asking (PICK_ONE), end a step that went stale (_stale), show a page of its own before the list (RESULTS), end
+    otherwise (_finish) and decide the button on its own (_clicked)."""
 
     # The step after the device was asked.
     RESULTS = "results"
@@ -70,6 +77,11 @@ class DeviceCheck:
     _device: str | None = None
     _task: asyncio.Task[CheckResult | str] | None = None
     _result: CheckResult | str | None = None
+    # The last page as shown (step id and placeholders), the link its button opens (None before it showed) and the
+    # self-checks the check answered (Checks.finish_check: their notices go with the button).
+    _last: tuple[str, dict[str, str]] | None = None
+    _link: str | None = None
+    _marked: frozenset[tuple[object, ...]] = frozenset()
 
     def _checks(self) -> Checks | None:
         raise NotImplementedError
@@ -161,11 +173,49 @@ class DeviceCheck:
         return {"device": text.plain(result.name), "file": result.file, "revision": result.revision or "unknown", "entities": text.check_dialog(result)}
 
     def _finish(self, checks: Checks, result: CheckResult, matches: set[str], wrong: set[str]) -> ConfigFlowResult:
-        """The report: the counts and the link to the form it goes to."""
-        _report, url = checks.finish_check(result, matches, wrong)
-        unchecked = len(result.rows) - len(matches) - len(wrong)
-        placeholders = {"matches": str(len(matches)), "wrong": str(len(wrong)), "unchecked": str(unchecked), "link": url}
-        return self.async_abort(reason="report_wrong" if wrong else "report", description_placeholders=placeholders)
+        """The report: the counts, the button opens the form it goes to."""
+        _report, url, answered = checks.finish_check(result, matches, wrong)
+        unchecked = str(len(result.rows) - len(matches) - len(wrong))
+        if wrong:
+            return self._show_last("report_wrong", {"wrong": str(len(wrong)), "matches": str(len(matches)), "unchecked": unchecked}, url, answered)
+        return self._show_last("report", {"matches": str(len(matches)), "unchecked": unchecked}, url, answered)
+
+    def _show_last(self, step_id: str, placeholders: dict[str, str], link: str, answered: frozenset[tuple[object, ...]]) -> ConfigFlowResult:
+        self._last, self._link, self._marked = (step_id, placeholders), link, answered
+        return self.async_show_form(step_id=step_id, data_schema=None, description_placeholders=placeholders)
+
+    def _open(self, user_input: dict[str, Any] | None) -> ConfigFlowResult:
+        """The last page's button: _clicked decides. The button sends an empty input (the page has no fields). Any other
+        input is no click: asked for the page again (none), or the step before sent again (a doubled or retried POST of
+        its choice or its list lands here, a page without fields takes any input). Then the page, nothing changes."""
+        if self._last is None or self._link is None or not isinstance(self._result, CheckResult):
+            # Not reached through the last page (Home Assistant lets no flow skip to a step).
+            return self.async_abort(reason="check_failed")
+        if user_input != {}:
+            step_id, placeholders = self._last
+            return self.async_show_form(step_id=step_id, data_schema=None, description_placeholders=placeholders)
+        return self._clicked(self._result, self._link)
+
+    def _clicked(self, result: CheckResult, link: str) -> ConfigFlowResult:
+        """The button: the notices the check answers go, the external step opens the link. Nothing here waits: a second
+        click (a double submit) finds the flow on the external step already. The options check belongs to no notice: its
+        link opens whatever happened to them since the page showed."""
+        if (checks := self._checks()) is None:
+            return self.async_abort(reason="not_loaded")
+        checks.close_checked(result, self._marked)
+        return self.async_external_step(step_id="open", url=link)
+
+    async def async_step_report(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        return self._open(user_input)
+
+    async def async_step_report_wrong(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        return self._open(user_input)
+
+    async def async_step_open(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """The link opened: the same external step whatever comes (it can only lead to another one or to its end)."""
+        if self._link is None:
+            return self.async_abort(reason="check_failed")
+        return self.async_external_step(step_id="open", url=self._link)
 
 
 class QuirksOptionsFlow(DeviceCheck, OptionsFlow):
@@ -173,6 +223,9 @@ class QuirksOptionsFlow(DeviceCheck, OptionsFlow):
         self._device = None
         self._task = None
         self._result = None
+        self._last = None
+        self._link = None
+        self._marked = frozenset()
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         return self.async_show_menu(step_id="init", menu_options=["settings", "check"])

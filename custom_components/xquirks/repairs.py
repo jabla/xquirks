@@ -7,6 +7,9 @@ step. The "changes wait for a ZHA reload" issue is left only when ZHA was not lo
 ZHA when the user picks it. The notice of a held-back file turns on "Offer high-risk files"
 (HeldBackFlow): the change list that follows asks before it installs anything. A self-check notice
 leads through the device check (SelfCheckFlow).
+
+A first page shows the device picture of this run (manager.picture): its address carries a token of each Home Assistant
+run, so the one a notice stored from an earlier run is dead.
 """
 
 from __future__ import annotations
@@ -175,7 +178,8 @@ class HeldBackFlow(_QuirkFlow):
         # What the notice says (a fixable notice shows no description), as it stands after the refresh.
         issue = ir.async_get(self.hass).async_get_issue(DOMAIN, self.issue_id)
         stored = (issue.translation_placeholders if issue is not None else None) or {}
-        placeholders = {key: str(stored.get(key, "")) for key in ("picture", "devices", "file", "status", "reasons")}
+        placeholders = {key: str(stored.get(key, "")) for key in ("devices", "file", "status", "reasons")}
+        placeholders["picture"] = manager.picture(self.issue_data["file"])
         placeholders["files"] = text.name_list([f"`{name}` ({text.plain(manager.quirk_label(name))})" for name in names])
         return self.async_show_menu(step_id="confirm", menu_options=["apply", "not_now"], description_placeholders=placeholders)
 
@@ -202,8 +206,13 @@ class SelfCheckFlow(DeviceCheck, RepairsFlow):
     verified now, goes ("already confirmed"). "Looks off" always stays. Then the device check (DeviceCheck: the picker
     limited to the notice's devices, none for one), its values with "All values match" (a thumbs-up on the open issue of
     the device's variant, else the filled-in form) or "Something does not match" (the list of the options flow, then the
-    report). "Do not check" and every end close the notice for its file revision. From the search answer only the issue
-    number (in a link built here) and its count reach a page.
+    report). "Do not check" and the button of a last page close the notice for its file revision. From the search answer
+    only the issue number (in a link built here) and its count reach a page.
+
+    The last page (the report, the problem report or the thumbs-up) keeps the report when it shows and leaves the notice
+    open: the dialog's X there deletes the flow, the next opening starts on the first page. Its one button (DeviceCheck)
+    closes the notice while it stands as it was made, otherwise it ends with the reason and opens nothing: the notice
+    was closed in another window (no second form for it) or its file changed.
     """
 
     RESULTS = "values"
@@ -220,6 +229,9 @@ class SelfCheckFlow(DeviceCheck, RepairsFlow):
         self._result = None
         # The first page's search answer (None: no search, or it failed), for the last page.
         self._answer: object = None
+        self._last = None
+        self._link = None
+        self._marked = frozenset()
 
     def _manager(self) -> QuirkManager | None:
         entries = self.hass.config_entries.async_loaded_entries(DOMAIN)
@@ -294,8 +306,9 @@ class SelfCheckFlow(DeviceCheck, RepairsFlow):
         # What the notice found, as it showed it (a fixable issue shows no description).
         issue = ir.async_get(self.hass).async_get_issue(DOMAIN, self.issue_id)
         stored = (issue.translation_placeholders if issue is not None else None) or {}
-        shown = ("picture", "file", "revision", "devices", *(("link",) if off else ()))
+        shown = ("file", "revision", "devices", *(("link",) if off else ()))
         placeholders = {key: str(stored.get(key, "")) for key in shown}
+        placeholders["picture"] = manager.picture(name)
         if off:
             # The open reports of the file before the form: built here, a notice of an earlier release has no such link.
             placeholders["reports"] = text.reports_url(name)
@@ -345,9 +358,20 @@ class SelfCheckFlow(DeviceCheck, RepairsFlow):
         found = self._issue(checks, result)
         if found is None:
             return self._finish(checks, result, matches, set())
-        checks.finish_check(result, matches, set())
+        _report, _url, answered = checks.finish_check(result, matches, set())
         number, count, threshold = found
-        return self.async_abort(reason="thumbs_up", description_placeholders={"link": text.issue_url(number), "count": str(count), "threshold": str(threshold)})
+        return self._show_last("thumbs_up", {"count": str(count), "threshold": str(threshold)}, text.issue_url(number), answered)
+
+    def _clicked(self, result: CheckResult, link: str) -> FlowResult:
+        """The button: only while the notice stands as it was made (the device need not be there, the link needs none)."""
+        if (checks := self._checks()) is None:
+            return self.async_abort(reason="not_loaded")
+        if (found := self._notice(checks))[0] is None:
+            return self.async_abort(reason=found[1])
+        return super()._clicked(result, link)
+
+    async def async_step_thumbs_up(self, user_input: dict | None = None) -> FlowResult:
+        return self._open(user_input)
 
     def _issue(self, checks: Checks, result: CheckResult) -> tuple[int, int, int] | None:
         """The oldest open issue of the checked device's variant in the first page's answer (the fixed part the form's

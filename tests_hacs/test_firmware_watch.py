@@ -22,7 +22,7 @@ from zigpy.exceptions import DeliveryError
 
 from .conftest import NO_QUIRK, REPOS, STRINGS, Zha, apply_list, continue_fix, issues_of, manager_of, start_fix
 from .integration import PACKAGE, const
-from .test_checks import ACME_C, IEEE_A, IEEE_C, NAME, TUYA_A, LiveDevice, acme, checks, conclude, hard_restart, installed, radar, settle, watch_for
+from .test_checks import ACME_C, IEEE_A, IEEE_C, NAME, TUYA_A, LiveDevice, acme, checks, conclude, hard_restart, installed, radar, run_check, settle, watch_for
 from .test_confirm_search import FIRMWARE_A, FIRMWARE_B, HALL, IEEE_B, NEW_KEY, answer, fine_values, hall, hit, keyed, prepare, same_revision, searches, set_firmware, title
 from .test_content import restart_with
 from .test_data_query import queries
@@ -224,20 +224,60 @@ async def test_the_notice_opens_the_guided_check_and_do_not_check_closes_it(hass
     assert firmware_notices(hass) == []
 
 
-async def test_a_device_check_from_the_notice_closes_it(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock):
+async def test_a_device_check_from_the_notice_closes_it_with_the_button(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock):
+    """The last page keeps the report and marks the check done. The notice goes only with the page's button: closing the
+    dialog on the last page leaves it, opening it again starts on its first page."""
     (device,), _search = await done_installed(hass, zha, repo_dir, aioclient_mock)
     await update(hass, device, FIRMWARE_B)
     await conclude(hass)
     (issue,) = firmware_notices(hass)
     answers(device)
-    flow = await start_fix(hass, issue)
-    flow = await ask(hass, flow, {"next_step_id": "check"})
-    assert flow["type"] is FlowResultType.MENU and flow["step_id"] == "values", flow
-    flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
-    assert flow["type"] is FlowResultType.ABORT and flow["reason"] == "report"
-    assert firmware_notices(hass) == []
-    assert watch_of(hass, device)["checked"] is True
-    assert manager_of(hass).summary()["firmware_checks"][0]["device_check_done"] is True
+    for clicked in (False, True):
+        flow = await start_fix(hass, issue)
+        assert flow["type"] is FlowResultType.MENU and flow["step_id"] == "confirm", flow
+        flow = await ask(hass, flow, {"next_step_id": "check"})
+        assert flow["type"] is FlowResultType.MENU and flow["step_id"] == "values", flow
+        flow = await continue_fix(hass, flow, {"next_step_id": "all_match"})
+        # The last page: one button that opens the form.
+        assert flow["type"] is FlowResultType.FORM and flow["step_id"] == "report" and flow["data_schema"] is None
+        assert [i.issue_id for i in firmware_notices(hass)] == [issue.issue_id]
+        assert watch_of(hass, device)["checked"] is True and not watch_of(hass, device).get("closed")
+        assert manager_of(hass).summary()["firmware_checks"][0]["device_check_done"] is True
+        if not clicked:
+            # The dialog's X: Home Assistant deletes the flow.
+            hass.data["repairs"]["flow_manager"].async_abort(flow["flow_id"])
+            assert [i.issue_id for i in firmware_notices(hass)] == [issue.issue_id]
+    opened = await continue_fix(hass, flow, {})
+    assert opened["type"] is FlowResultType.EXTERNAL_STEP and opened["step_id"] == "open"
+    assert firmware_notices(hass) == [] and watch_of(hass, device)["closed"] is True
+    assert len(manager_of(hass).checks.reports) == 2
+
+
+@pytest.mark.parametrize("flow", ["notice", "options"])
+async def test_the_button_closes_only_what_its_check_answered(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, flow: str):
+    """A check reaches its last page while the device runs firmware A. Then the device updates to B, that firmware watch
+    ends with its own notice. The button closes the file's notice the check answered, not the notice of firmware B: the
+    check never saw that firmware."""
+    (device,), _search = await done_installed(hass, zha, repo_dir, aioclient_mock)
+    (file_notice,) = file_notices(hass)
+    answers(device)
+    options = hass.config_entries.options
+    if flow == "notice":
+        result = await start_fix(hass, file_notice)
+        result = await ask(hass, result, {"next_step_id": "check"})
+        result = await continue_fix(hass, result, {"next_step_id": "all_match"})
+    else:
+        result = await run_check(hass, hass.config_entries.async_entries(const.DOMAIN)[0], device.device_id)
+        result = await options.async_configure(result["flow_id"], {"matches": ["1-temperature"], "wrong": []})
+    assert result["type"] is FlowResultType.FORM and result["step_id"] == "report", result
+    await update(hass, device, FIRMWARE_B)
+    await conclude(hass)
+    (firmware_notice,) = firmware_notices(hass)
+    assert watch_of(hass, device)["firmware"] == FIRMWARE_B
+    opened = await (continue_fix(hass, result, {}) if flow == "notice" else options.async_configure(result["flow_id"], {}))
+    assert opened["type"] is FlowResultType.EXTERNAL_STEP
+    assert file_notices(hass) == [] and [i.issue_id for i in firmware_notices(hass)] == [firmware_notice.issue_id]
+    assert not watch_of(hass, device).get("closed") and not watch_of(hass, device).get("checked")
 
 
 @pytest.mark.parametrize(("thumbs", "notice"), [(1, False), (0, True)])

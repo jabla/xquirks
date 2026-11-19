@@ -1066,11 +1066,12 @@ class QuirkManager:
         return self.pictures.markdown(*self._pin(name)) if self.pictures else ""
 
     def _named_files(self) -> set[str]:
-        """The files whose device a notice names."""
+        """The files whose device a notice names. Those of the self-checks too (Checks.notice_files): the change list that
+        installed them fetches no picture."""
         plan = self.plan
         names = {item.name for items in (plan.blocked, plan.held_back, plan.not_applied, plan.misfits) for item in items}
         names |= {os.path.basename(path) for path in plan.changed} | {os.path.basename(path) for path, _rev in plan.withdrawn_installed}
-        return names | set(plan.users_files) | set(plan.withdrawn_copies)
+        return names | set(plan.users_files) | set(plan.withdrawn_copies) | self.checks.notice_files()
 
     @callback
     def _fetch_pictures(self) -> None:
