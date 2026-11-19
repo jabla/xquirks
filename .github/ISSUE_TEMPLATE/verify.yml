@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for testing. The easiest way is **Check the device now** in the xquirks notice or **Check a device** in Home Assistant (Settings > Devices & services > xquirks > Configure): it asks the device for its values, you mark what matches the device, then it opens this form filled in. Its report names no address and none of the names you gave. Without the integration, run the probe (see [CONTRIBUTING.md, "A device test"](https://github.com/jabla/xquirks/blob/main/CONTRIBUTING.md#a-device-test-verified)), tick the values in `probe-report/report.md` that match the device (its display, its app or what it does), then attach `report.md` and `diagnostics.json` below. The probe removes IEEE addresses. Check everything for anything else you do not want to share.
+        Thanks for testing. Without the xquirks integration: run the probe as in [CONTRIBUTING.md, "A device test"](https://github.com/jabla/xquirks/blob/main/CONTRIBUTING.md#a-device-test-verified). Attach `report.md` and `diagnostics.json` below. Check them for anything you do not want to share.
   - type: input
     id: file
     attributes:
