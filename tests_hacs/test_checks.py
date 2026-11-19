@@ -1577,9 +1577,11 @@ def test_a_long_self_check_link_leaves_out_the_last_findings():
 
 
 def test_the_forms_ask_for_what_the_links_fill_in():
-    """The device check's report goes into the Device test form's report field; its text mentions the check."""
+    """The device check's report goes into the Device test form's report field. The link fills the form in, so its text
+    only points a test without the integration to the probe."""
     form = yaml.safe_load((FORMS / text.VERIFY_FORM).read_text())
-    assert "Check a device" in form["body"][0]["attributes"]["value"]
+    intro = form["body"][0]["attributes"]["value"]
+    assert "probe" in intro and "CONTRIBUTING.md#a-device-test-verified" in intro
     assert {"file", "revision", "ha", "report"} <= form_ids(text.VERIFY_FORM)
     assert {"file", "revision", "ha", "problem", "diagnostics"} <= form_ids(text.PROBLEM_FORM)
 
