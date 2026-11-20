@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for testing. Without the xquirks integration: run the probe as in [CONTRIBUTING.md, "A device test"](https://github.com/jabla/xquirks/blob/main/CONTRIBUTING.md#a-device-test-verified). Attach `report.md` and `diagnostics.json` below. Check them for anything you do not want to share.
+        Thanks for testing. Check the fields for anything you do not want to share.
   - type: input
     id: file
     attributes:
@@ -38,8 +38,8 @@ body:
   - type: textarea
     id: report
     attributes:
-      label: Probe report and diagnostics
-      description: The device check of the xquirks integration fills this in. With the probe, drop report.md and diagnostics.json here.
+      label: Report and diagnostics
+      description: The device check of the xquirks integration fills this in. With the probe ([CONTRIBUTING.md, "A device test"](https://github.com/jabla/xquirks/blob/main/CONTRIBUTING.md#a-device-test-verified)), drop report.md and diagnostics.json here.
     validations:
       required: true
   - type: textarea

@@ -79,14 +79,15 @@ that device for another day unless its file is verified. A notice leaves out dev
 enough people confirmed. Apart from the search for confirmations (below), nothing leaves your Home
 Assistant by itself.
 
-**Check a device** under Settings > Devices & services > xquirks > Configure asks one device for its
-current values. You mark which match the device. The last dialog opens the "Device test" form on
-GitHub filled in with the report, which names no address and none of the names you gave. The notice
-offers the same check. When a test of the same device and firmware is on GitHub already, its last
-dialog links that issue for a thumbs-up. That is how a file becomes verified.
+**Check a device** under Settings > Devices & services > xquirks (a button at the top, also in the
+three-dot menu) asks one device for its current values. You mark which match the device. **Report**
+on the last dialog opens a form on GitHub in a new tab, filled in with the report, which names no
+address and none of the names you gave: "Device test", or "Wrong or missing value" when you marked a
+value as wrong. A notice's **Check the device now** opens the same check. When a test of the same
+device and firmware is on GitHub already, the notice's check links that issue for a thumbs-up
+instead. That is how a file becomes verified.
 
-To keep a device out, add it under Settings > Devices & services > xquirks > Configure > What xquirks
-offers. A file
+To keep a device out, add it under Settings > Devices & services > xquirks > Configure. A file
 another device needs is installed anyway. The integration never writes or deletes a file it did not
 write, a file you changed or a symlink. Its notices say what happened and what to do. "Quirk file
 refused" should never appear: please report it with the integration's diagnostics.
@@ -95,8 +96,7 @@ refused" should never appear: please report it with the integration's diagnostic
 
 Removing only the integration leaves the installed files in place. To remove them too:
 
-1. Settings > Devices & services > xquirks > Configure > What xquirks offers: add all your ZHA devices
-   under **Devices**.
+1. Settings > Devices & services > xquirks > Configure: add all your ZHA devices under **Devices**.
 2. Apply the change list in Settings > System > Repairs. It removes the files and reloads ZHA.
    Where xquirks replaced ZHA's own quirk, that quirk takes the device back. Files you changed
    yourself stay: delete them from the custom quirks folder.

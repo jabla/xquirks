@@ -25,7 +25,7 @@ stick. What helps most:
 A file becomes "verified" when someone checked its entities against the device itself: its display,
 its app or what it does.
 
-With the integration: Settings > Devices & services > xquirks > Configure > **Check a device**. Pick
+With the integration: Settings > Devices & services > xquirks > **Check a device**. Pick
 the device. The integration asks it for its current values (a Tuya data query or a read of the
 attributes behind the file's entities), which changes nothing on the device. Mark which values match
 the device and which do not. The last dialog opens the "Device test" form filled in with the report.

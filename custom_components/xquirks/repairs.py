@@ -1,12 +1,12 @@
 """Fix flows: the change list (confirmed as a whole), the reminder to reload ZHA, the option that offers
-held-back high-risk files and the guided device check of a self-check notice.
+held-back high-risk files and the first page of a self-check notice.
 
 The change list's dialog shows every install, update and removal; "Apply all" carries them out
 together (manager.async_apply) and reloads ZHA right after, so they take effect without another
 step. The "changes wait for a ZHA reload" issue is left only when ZHA was not loaded; it reloads
 ZHA when the user picks it. The notice of a held-back file turns on "Offer high-risk files"
 (HeldBackFlow): the change list that follows asks before it installs anything. A self-check notice
-leads through the device check (SelfCheckFlow).
+hands over to the device check of the entry (SelfCheckFlow).
 
 A first page shows the device picture of this run (manager.picture): its address carries a token of each Home Assistant
 run, so the one a notice stored from an earlier run is dead.
@@ -18,14 +18,15 @@ import asyncio
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.repairs import RepairsFlow
+from homeassistant.components.repairs.const import FlowType
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.data_entry_flow import FlowResult, FlowResultType
 from homeassistant.helpers import issue_registry as ir
 
-from . import confirm, text
+from . import text
 from . import plan as plans
-from .checks import KINDS, OFF, CheckResult, Checks
-from .config_flow import MATCHES, WRONG, DeviceCheck
+from .checks import KINDS, OFF, Checks
+from .config_flow import DEVICE_CHECK, SOURCE_NOTICE
 from .const import CONF_HIGH_RISK, DOMAIN
 
 if TYPE_CHECKING:
@@ -198,80 +199,40 @@ class HeldBackFlow(_QuirkFlow):
         return self.async_abort(reason="done")
 
 
-class SelfCheckFlow(DeviceCheck, RepairsFlow):
-    """The guided device check of a self-check notice (checks.py: values look fine, did not come, look off).
+class SelfCheckFlow(RepairsFlow):
+    """The first page of a self-check notice (checks.py: values look fine, did not come, look off): what the notice found,
+    with "Check the device now" or "Do not check". Before it shows, one search (SEARCH_WAIT at most): a fine or unproven
+    notice whose devices are all past the threshold now, or whose file is verified now, goes ("already confirmed"). "Looks
+    off" always stays. "Do not check" closes the notice for its file revision. From the search answer only the issue
+    number (in a link built on the device check's last page) and its count reach a page.
 
-    The first page says what the notice found and offers "Check the device now" or "Do not check". Before it shows, one
-    search (SEARCH_WAIT at most): a fine or unproven notice whose devices are all past the threshold now, or whose file is
-    verified now, goes ("already confirmed"). "Looks off" always stays. Then the device check (DeviceCheck: the picker
-    limited to the notice's devices, none for one), its values with "All values match" (a thumbs-up on the open issue of
-    the device's variant, else the filled-in form) or "Something does not match" (the list of the options flow, then the
-    report). "Do not check" and the button of a last page close the notice for its file revision. From the search answer
-    only the issue number (in a link built here) and its count reach a page.
-
-    The last page (the report, the problem report or the thumbs-up) keeps the report when it shows and leaves the notice
-    open: the dialog's X there deletes the flow, the next opening starts on the first page. Its one button (DeviceCheck)
-    closes the notice while it stands as it was made, otherwise it ends with the reason and opens nothing: the notice
-    was closed in another window (no second form for it) or its file changed.
+    "Check the device now" hands over to the device check, a subentry flow of the entry (config_flow.DeviceCheckFlow,
+    source "notice"): its dialog shows a text on the page after the report's button, the repairs dialog would show an
+    empty page. The device check gets the notice and the search answer. Its first step runs the checks a device check
+    starts with (the entry and ZHA loaded, the notice as it was made, a device of the notice there) and asks the one
+    device of a notice at once. A check that cannot start ends here with its reason. Otherwise this flow ends with an
+    abort that names the device check as the next flow: the abort keeps the notice, the frontend opens the device check's
+    dialog without an abort page. The device check closes the notice with the button of its last page.
     """
-
-    RESULTS = "values"
-    PICK_ONE = True
-    # The values page says it.
-    NO_ANSWER_ERROR = False
 
     def __init__(self, issue_id: str, data: dict) -> None:
         super().__init__()
         self.issue_id = issue_id
         self.issue_data = data
-        self._device = None
-        self._task = None
-        self._result = None
-        # The first page's search answer (None: no search, or it failed), for the last page.
+        # The first page's search answer (None: no search, or it failed), for the device check's last page.
         self._answer: object = None
-        self._last = None
-        self._link = None
-        self._marked = frozenset()
 
     def _manager(self) -> QuirkManager | None:
         entries = self.hass.config_entries.async_loaded_entries(DOMAIN)
         return entries[0].runtime_data if entries else None
 
-    def _checks(self) -> Checks | None:
-        manager = self._manager()
-        return manager.checks if manager is not None else None
-
     def _notice(self, checks: Checks) -> tuple[dict[str, Any] | None, str]:
         """The self-check of the notice while the notice stands as it was made; otherwise None and the abort reason."""
-        # A firmware watch's notice names its device.
-        observation = checks.self_check(self.issue_data.get("file"), self.issue_data.get("revision"), self.issue_data.get("device"))
-        if observation is None:
-            return None, "file_changed"
-        if (not observation.get("done") or not observation.get("notice") or observation.get("closed")
-                or ir.async_get(self.hass).async_get_issue(DOMAIN, self.issue_id) is None):
-            # Closed in another window, or gone with a new self-check of the file.
-            return None, "gone"
-        return observation, ""
+        return checks.open_notice(self.issue_id, self.issue_data)
 
     def _devices(self, checks: Checks) -> list[str]:
         """The notice's devices the device check can ask now."""
         return checks.notice_devices(self.issue_data.get("file"), self.issue_data.get("devices"))
-
-    def _candidates(self, checks: Checks) -> list[tuple[str, str]]:
-        devices = set(self._devices(checks))
-        return [(device_id, label) for device_id, label in checks.candidates() if device_id in devices]
-
-    def _stale(self, checks: Checks) -> FlowResult | None:
-        if (found := self._notice(checks))[0] is None:
-            return self.async_abort(reason=found[1])
-        result = self._result
-        if isinstance(result, CheckResult):
-            # The device ran another revision (a change of the file waits for a ZHA reload: none), or it left.
-            if result.file != self.issue_data.get("file") or result.revision != self.issue_data.get("revision"):
-                return self.async_abort(reason="file_changed")
-            if result.device_id not in self._devices(checks):
-                return self.async_abort(reason="device_gone")
-        return None
 
     def _close(self, checks: Checks, observation: dict[str, Any], reason: str) -> FlowResult:
         checks.close_notice(self.issue_data["file"], observation)
@@ -316,74 +277,26 @@ class SelfCheckFlow(DeviceCheck, RepairsFlow):
 
     async def async_step_skip(self, user_input: dict | None = None) -> FlowResult:
         """"Do not check": the notice goes and does not come back for this revision of the file."""
-        if (checks := self._checks()) is None:
+        if (manager := self._manager()) is None:
             return self.async_abort(reason="not_loaded")
-        observation, reason = self._notice(checks)
+        observation, reason = self._notice(manager.checks)
         if observation is None:
             return self.async_abort(reason=reason)
-        return self._close(checks, observation, "skipped")
+        return self._close(manager.checks, observation, "skipped")
 
-    async def async_step_values(self, user_input: dict | None = None) -> FlowResult:
-        """The values of the device check with "All values match" and "Something does not match"."""
-        if not isinstance(checked := self._checked(), tuple):
-            return checked
-        result = checked[1]
-        step = "values" if result.answered is not False else "values_no_answer_mains" if result.mains else "values_no_answer"
-        return self.async_show_menu(step_id=step, menu_options=["all_match", "mismatch"], description_placeholders=self._shown(result))
-
-    # The values page when the device did not answer (Home Assistant wants a step for each page it shows).
-    async def async_step_values_no_answer(self, user_input: dict | None = None) -> FlowResult:
-        return await self.async_step_values()
-
-    async def async_step_values_no_answer_mains(self, user_input: dict | None = None) -> FlowResult:
-        return await self.async_step_values()
-
-    async def async_step_mismatch(self, user_input: dict | None = None) -> FlowResult:
-        return await self.async_step_results()
-
-    async def async_step_results(self, user_input: dict | None = None) -> FlowResult:
-        """The list after "Something does not match": it ends with the report (DeviceCheck._finish), never a thumbs-up.
-        Every value marked matching and none wrong: back to the values page, where "All values match" is the confirmation."""
-        if user_input is not None and not user_input.get(WRONG) and isinstance(checked := self._checked(), tuple):
-            if set(user_input.get(MATCHES, [])) >= {row.suffix for row in checked[1].rows}:
-                return await self.async_step_values()
-        return await super().async_step_results(user_input)
-
-    async def async_step_all_match(self, user_input: dict | None = None) -> FlowResult:
-        """"All values match": a thumbs-up on the open issue of the device's variant when there is one, else the form."""
-        if not isinstance(checked := self._checked(), tuple):
-            return checked
-        checks, result = checked
-        matches = {row.suffix for row in result.rows}
-        found = self._issue(checks, result)
-        if found is None:
-            return self._finish(checks, result, matches, set())
-        _report, _url, answered = checks.finish_check(result, matches, set())
-        number, count, threshold = found
-        return self._show_last("thumbs_up", {"count": str(count), "threshold": str(threshold)}, text.issue_url(number), answered)
-
-    def _clicked(self, result: CheckResult, link: str) -> FlowResult:
-        """The button: only while the notice stands as it was made (the device need not be there, the link needs none)."""
-        if (checks := self._checks()) is None:
+    async def async_step_check(self, user_input: dict | None = None) -> FlowResult:
+        """"Check the device now": the device check of the entry takes over."""
+        if (manager := self._manager()) is None:
             return self.async_abort(reason="not_loaded")
-        if (found := self._notice(checks))[0] is None:
-            return self.async_abort(reason=found[1])
-        return super()._clicked(result, link)
-
-    async def async_step_thumbs_up(self, user_input: dict | None = None) -> FlowResult:
-        return self._open(user_input)
-
-    def _issue(self, checks: Checks, result: CheckResult) -> tuple[int, int, int] | None:
-        """The oldest open issue of the checked device's variant in the first page's answer (the fixed part the form's
-        title ends with): its number, its count and the threshold. None without one or when the answer cannot tell."""
-        threshold = confirm.valid_threshold(checks.manager.source.confirm_threshold)
-        key = checks.check_key(result.file, result.revision)
-        if threshold is None or key is None:
-            return None
-        found = confirm.confirmation(self._answer, confirm.fixed_part(result.manufacturer, result.model, result.firmware, key))
-        if found.state != confirm.FOUND or found.number is None or found.count is None:
-            return None
-        return found.number, found.count, threshold
+        started = await self.hass.config_entries.subentries.async_init(
+            (manager.entry.entry_id, DEVICE_CHECK),
+            context={"source": SOURCE_NOTICE},
+            data={"issue_id": self.issue_id, "data": self.issue_data, "answer": self._answer},
+        )
+        if started["type"] is FlowResultType.ABORT:
+            # The device check's reasons for a notice are this flow's too.
+            return self.async_abort(reason=started["reason"])
+        return self.async_abort(reason="check_started", next_flow=(FlowType.CONFIG_SUBENTRIES_FLOW, started["flow_id"]))
 
 
 class UnknownFlow(RepairsFlow):
