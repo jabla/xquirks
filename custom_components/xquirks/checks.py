@@ -4,7 +4,7 @@ Listeners (watch.py) sit on the devices that run a file of ours and are not left
 loaded. They only note which attribute got a fresh value and which Tuya datapoints came: nothing is
 polled, nothing is written, nothing leaves Home Assistant by itself.
 
-- The device check (the options flow's "Check a device", also the fix flow of a self-check notice)
+- The device check (the "Check a device" flow of the integration page, also reached from a self-check notice)
   asks one device for its current values (a Tuya data query, or a read of the attributes behind the
   file's entities), waits briefly and returns what it shows. The user marks what matches the device. The report it makes names no address, no
   device or area name and no entity id: it may go into a public issue.
@@ -33,7 +33,7 @@ import hashlib
 import importlib.metadata
 import logging
 import os
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -1114,7 +1114,24 @@ class Checks:
         if observation.get("notice"):
             ir.async_delete_issue(self.hass, DOMAIN, self.issue_id(name, observation))
 
-    # The fix flow of a notice (repairs.SelfCheckFlow)
+    # The flows of a notice (repairs.SelfCheckFlow and the device check it hands over to)
+
+    def open_notice(self, issue_id: object, data: Mapping[str, Any], answered: frozenset[tuple[object, ...]] | None = None) -> tuple[dict[str, Any] | None, str]:
+        """The self-check of a notice (its issue id and data) while the notice stands as it was made. Otherwise None and the
+        reason its flows end with: "file_changed" (updated or removed, the device left the firmware watch) or "gone"
+        (closed in another window, or gone with a new self-check of the file). With answered (the self-checks a last page
+        answered, finish_check): also "gone" when the notice now belongs to another self-check (one made again under the
+        same id since the page showed)."""
+        # A firmware watch's notice names its device.
+        observation = self.self_check(data.get("file"), data.get("revision"), data.get("device"))
+        if observation is None:
+            return None, "file_changed"
+        if (not observation.get("done") or not observation.get("notice") or observation.get("closed") or issue_id != self.issue_id(data["file"], observation)
+                or ir.async_get(self.hass).async_get_issue(DOMAIN, issue_id) is None):
+            return None, "gone"
+        if answered is not None and self._which(observation) not in answered:
+            return None, "gone"
+        return observation, ""
 
     def self_check(self, name: object, revision: object, device: object = None) -> dict[str, Any] | None:
         """The self-check of a notice (with device: the firmware watch of that device): its file still in the folder at this

@@ -1,25 +1,27 @@
-"""Config flow (one entry) and the options: a menu of the settings (the devices xquirks leaves alone,
-high-risk files) and the device check (test_checks.py)."""
+"""Config flow (one entry), the options (the devices xquirks leaves alone, high-risk files) and the subentry type of the
+device check (test_checks.py, test_self_check_flow.py)."""
 
 from __future__ import annotations
 
+import importlib
 from pathlib import Path
 
+import orjson
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
 from .conftest import MANIFEST, STRINGS, Zha, apply_list, issue_of, issues_of, listed, published, setup_entry, write_repo
-from .integration import DOMAIN, const
+from .integration import DOMAIN, PACKAGE, const
+
+config_flow = importlib.import_module(f"{PACKAGE}.config_flow")
 
 IEEE = "00:11:22:33:44:55:66:01"
 
 
 async def settings(hass: HomeAssistant, entry) -> dict:
-    """The options' settings form, reached through their menu."""
-    result = await hass.config_entries.options.async_init(entry.entry_id)
-    assert result["type"] is FlowResultType.MENU and result["menu_options"] == ["settings", "check"]
-    return await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "settings"})
+    """Configure: the settings form at once (the device check left the options)."""
+    return await hass.config_entries.options.async_init(entry.entry_id)
 
 
 async def test_user_flow_creates_the_entry(hass: HomeAssistant, zha: Zha, quirks_dir: Path, repo_dir: Path):
@@ -93,8 +95,30 @@ async def test_the_options_offer_high_risk_files_only_when_turned_on(hass: HomeA
     assert {str(key): key.default() for key in result["data_schema"].schema}[const.CONF_HIGH_RISK] is True
 
 
+async def test_configure_shows_only_the_settings(hass: HomeAssistant, zha: Zha, repo_dir: Path):
+    """No menu: Configure opens the settings form. A step of the device check is no step of the options."""
+    entry = await setup_entry(hass, repo_dir)
+    result = await settings(hass, entry)
+    assert result["type"] is FlowResultType.FORM and result["step_id"] == "settings"
+    handler = hass.config_entries.options._progress[result["flow_id"]]
+    assert not [name for name in dir(handler) if name.startswith("async_step_") and name not in ("async_step_init", "async_step_settings")]
+    assert set(STRINGS["options"]) == {"step"} and set(STRINGS["options"]["step"]) == {"settings"}
+
+
+async def test_the_device_check_is_the_one_subentry_type(hass: HomeAssistant, zha: Zha, repo_dir: Path):
+    """The integration page shows a button and a three-dot menu item for each subentry type: "Check a device". It has no
+    reconfigure step (Home Assistant would offer one on each subentry)."""
+    entry = await setup_entry(hass, repo_dir)
+    flow = config_flow.QuirksConfigFlow
+    assert flow.async_get_supported_subentry_types(entry) == {"device_check": config_flow.DeviceCheckFlow}
+    assert entry.supported_subentry_types == {"device_check": {"supports_reconfigure": False}}
+    # What the frontend gets for the integration page.
+    assert b'"supported_subentry_types":{"device_check":{"supports_reconfigure":false}}' in orjson.dumps(entry.as_json_fragment)
+    assert STRINGS["config_subentries"]["device_check"]["initiate_flow"] == {"user": "Check a device"}
+    assert entry.subentries == {}
+
+
 def test_the_options_step_says_what_xquirks_offers():
-    assert STRINGS["options"]["step"]["init"]["menu_options"] == {"settings": "What xquirks offers", "check": "Check a device"}
     step = STRINGS["options"]["step"]["settings"]
     assert step["title"] == "What xquirks offers"
     assert step["data"][const.CONF_HIGH_RISK] == "Offer high-risk files"

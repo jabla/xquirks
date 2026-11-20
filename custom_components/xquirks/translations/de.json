@@ -10,15 +10,103 @@
       "single_instance_allowed": "Bereits eingerichtet. Es ist nur ein Eintrag möglich."
     }
   },
-  "options": {
-    "step": {
-      "init": {
-        "title": "xquirks",
-        "menu_options": {
-          "settings": "Was xquirks anbietet",
-          "check": "Gerät prüfen"
+  "config_subentries": {
+    "device_check": {
+      "initiate_flow": {
+        "user": "Gerät prüfen"
+      },
+      "entry_type": "Geräteprüfung",
+      "step": {
+        "check": {
+          "title": "Welches Gerät",
+          "description": "Welches Gerät soll xquirks nach seinen aktuellen Werten fragen? Ein Tuya-Gerät bekommt eine Datenabfrage, bei jedem anderen Gerät liest xquirks die Werte hinter den Entitäten des Quirks. Am Gerät ändert sich dadurch nichts. Wecke ein Batteriegerät vorher auf, zum Beispiel mit seiner Taste.\n\nDann vergleichst du jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut. Daraus entsteht ein Bericht für einen Gerätetest auf GitHub. Er nennt keine Adresse des Geräts, keinen Raum und keinen der Namen, die du vergeben hast.",
+          "data": {
+            "device": "Gerät"
+          }
+        },
+        "ask": {
+          "title": "Gerät abfragen"
+        },
+        "values": {
+          "title": "Mit dem Gerät vergleichen",
+          "description": "**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nVergleiche jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut.",
+          "menu_options": {
+            "all_match": "Alle Werte stimmen",
+            "mismatch": "Etwas stimmt nicht"
+          }
+        },
+        "values_no_answer": {
+          "title": "Mit dem Gerät vergleichen",
+          "description": "Das Gerät hat nicht geantwortet. Die Werte unten hat ZHA früher gespeichert. Um es noch einmal zu fragen, wecke es auf, zum Beispiel mit seiner Taste. Starte die Prüfung dann erneut.\n\n**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nVergleiche jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut.",
+          "menu_options": {
+            "all_match": "Alle Werte stimmen",
+            "mismatch": "Etwas stimmt nicht"
+          }
+        },
+        "values_no_answer_mains": {
+          "title": "Mit dem Gerät vergleichen",
+          "description": "Das Gerät hat nicht geantwortet. Die Werte unten hat ZHA früher gespeichert. Es ist gerade nicht erreichbar. Um es noch einmal zu fragen, sieh nach, ob es Strom hat. Starte die Prüfung dann erneut.\n\n**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nVergleiche jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut.",
+          "menu_options": {
+            "all_match": "Alle Werte stimmen",
+            "mismatch": "Etwas stimmt nicht"
+          }
+        },
+        "results": {
+          "title": "Markieren, was nicht stimmt",
+          "description": "**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nMarkiere die Werte, die nicht mit dem Gerät übereinstimmen. Werte, die du als richtig erkannt hast, kommen in die erste Liste.",
+          "data": {
+            "matches": "Stimmen mit dem Gerät überein",
+            "wrong": "Stimmen nicht mit dem Gerät überein"
+          }
+        },
+        "report": {
+          "title": "Gerätetest melden",
+          "description": "Werte, die mit dem Gerät übereinstimmen: {matches}. Nicht verglichen: {unchecked}.\n\n**Melden** öffnet das Formular auf GitHub. Es ist mit dem Bericht ausgefüllt. Prüfe es und sende es ab.",
+          "submit": "Melden"
+        },
+        "report_wrong": {
+          "title": "Falsche Werte melden",
+          "description": "Werte, die nicht mit dem Gerät übereinstimmen: {wrong}. Übereinstimmend: {matches}. Nicht verglichen: {unchecked}.\n\n**Melden** öffnet das Formular auf GitHub. Es ist mit dem Bericht ausgefüllt. Beschreibe, was das Gerät zeigt, prüfe das Formular und sende es ab.",
+          "submit": "Melden"
+        },
+        "thumbs_up": {
+          "title": "Gerätetest bestätigen",
+          "description": "Für dieses Gerät mit derselben Firmware gibt es schon einen Gerätetest auf GitHub. Gib ihm dort einen Daumen hoch: Das zählt als deine Bestätigung (dafür brauchst du ein GitHub-Konto). Bisherige Bestätigungen: {count}. Ab {threshold} kann die Datei für alle als geprüft gelten.",
+          "submit": "Gerätetest öffnen"
+        },
+        "open": {
+          "title": "Formular auf GitHub",
+          "description": "Kein neuer Tab? **Website öffnen** öffnet das Formular. Klappt das nicht, [öffne das Formular auf GitHub]({link})."
+        },
+        "open_test": {
+          "title": "Gerätetest auf GitHub",
+          "description": "Kein neuer Tab? **Website öffnen** öffnet den Gerätetest. Klappt das nicht, [öffne ihn auf GitHub]({link})."
         }
       },
+      "progress": {
+        "asking": "xquirks fragt das Gerät nach seinen Werten. Das dauert höchstens eine halbe Minute."
+      },
+      "error": {
+        "both": "Markiere jeden Wert nur in einer der beiden Listen.",
+        "nothing": "Markiere mindestens einen Wert."
+      },
+      "abort": {
+        "not_loaded": "xquirks ist nicht geladen. Lade es neu und versuche es noch einmal.",
+        "zha_not_loaded": "ZHA ist nicht geladen. Versuche es noch einmal, sobald es läuft.",
+        "no_device": "Gerade verwendet keines der Geräte dieses Hinweises die Datei oder ZHA hat diese Geräte nicht. Versuche es später noch einmal.",
+        "device_gone": "Das Gerät verwendet seine Datei von xquirks nicht mehr oder ZHA hat es gerade nicht.",
+        "check_failed": "Die Prüfung ist fehlgeschlagen. Das Home-Assistant-Protokoll nennt den Grund.",
+        "no_entities": "Die Datei fügt diesem Gerät keine Entität hinzu, die die Prüfung zeigen kann.",
+        "gone": "Nichts mehr zu tun: Dieser Hinweis wurde inzwischen geschlossen.",
+        "file_changed": "Nichts zu prüfen: Die Datei wurde aktualisiert oder entfernt, seit dieser Hinweis kam.",
+        "nothing_to_check": "Gerade verwendet keines deiner Geräte eine Datei von xquirks. Ein Gerät, das xquirks in Ruhe lässt (deaktiviert oder in den Optionen ausgewählt), wird nicht angeboten.",
+        "opened": "Danke! Das Formular ist in einem neuen Tab offen.",
+        "opened_test": "Danke! Der Gerätetest ist in einem neuen Tab offen. Gib ihm dort einen Daumen hoch."
+      }
+    }
+  },
+  "options": {
+    "step": {
       "settings": {
         "title": "Was xquirks anbietet",
         "description": "**Geräte**: xquirks installiert keine Datei nur für diese Geräte. Dateien, die nur sie verwenden, gehen mit der nächsten Änderungsliste. Eine Datei, die ein anderes Gerät braucht, wird trotzdem installiert oder bleibt: ZHA wendet sie auch auf diese Geräte an (die Änderungsliste nennt sie).\n\nIn Home Assistant deaktivierte Geräte lässt xquirks genauso in Ruhe.\n\n**Dateien mit hohem Risiko anbieten**: Dateien für Rollläden und Thermostate, Dateien, die ZHAs eigenen Quirk ersetzen, und Dateien mit einer bekannten Schwachstelle hält xquirks zurück, bis sie an einem Gerät geprüft sind. Schalte das ein, um sie trotzdem in der Änderungsliste zu bekommen, mit ihrem Risiko markiert.",
@@ -26,49 +114,7 @@
           "excluded": "Geräte",
           "high_risk": "Dateien mit hohem Risiko anbieten"
         }
-      },
-      "check": {
-        "title": "Gerät prüfen",
-        "description": "xquirks fragt das Gerät nach seinen aktuellen Werten: Ein Tuya-Gerät bekommt eine Datenabfrage, bei jedem anderen Gerät liest xquirks die Werte hinter den Entitäten des Quirks. Am Gerät ändert sich dadurch nichts. Wecke ein Batteriegerät vorher auf, zum Beispiel mit seiner Taste.\n\nDann vergleichst du jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut. Daraus entsteht ein Bericht für einen Gerätetest auf GitHub. Er nennt keine Adresse des Geräts, keinen Raum und keinen der Namen, die du vergeben hast.",
-        "data": {
-          "device": "Gerät"
-        }
-      },
-      "results": {
-        "title": "Mit dem Gerät vergleichen",
-        "description": "**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nMarkiere jeden Wert, den du mit dem Display des Geräts, seiner App oder dem, was es tut, verglichen hast.",
-        "data": {
-          "matches": "Stimmen mit dem Gerät überein",
-          "wrong": "Stimmen nicht mit dem Gerät überein"
-        }
-      },
-      "report": {
-        "title": "Gerätetest melden",
-        "description": "Danke! Werte, die mit dem Gerät übereinstimmen: {matches}. Nicht verglichen: {unchecked}.\n\n**Melden** öffnet das Formular auf GitHub. Es ist mit dem Bericht ausgefüllt. Prüfe es und sende es ab. Der Bericht steht auch in den Diagnosedaten von xquirks (Drei-Punkte-Menü der Integration > Diagnosedaten herunterladen).",
-        "submit": "Melden"
-      },
-      "report_wrong": {
-        "title": "Falsche Werte melden",
-        "description": "Werte, die nicht mit dem Gerät übereinstimmen: {wrong}. Übereinstimmend: {matches}. Nicht verglichen: {unchecked}.\n\n**Melden** öffnet das Formular auf GitHub. Es ist mit dem Bericht ausgefüllt. Beschreibe, was das Gerät zeigt, prüfe das Formular und sende es ab. Der Bericht steht auch in den Diagnosedaten von xquirks (Drei-Punkte-Menü der Integration > Diagnosedaten herunterladen).",
-        "submit": "Melden"
       }
-    },
-    "progress": {
-      "asking": "xquirks fragt das Gerät nach seinen Werten. Das dauert höchstens eine halbe Minute."
-    },
-    "error": {
-      "both": "Markiere jeden Wert nur in einer der beiden Listen.",
-      "nothing": "Markiere mindestens einen Wert.",
-      "no_answer": "Das Gerät hat nicht geantwortet. Die Werte unten hat ZHA früher gespeichert. Wecke das Gerät auf, zum Beispiel mit seiner Taste. Prüfe es dann noch einmal.",
-      "no_answer_mains": "Das Gerät hat nicht geantwortet. Die Werte unten hat ZHA früher gespeichert. Es ist gerade nicht erreichbar. Sieh nach, ob es Strom hat. Prüfe es dann noch einmal."
-    },
-    "abort": {
-      "not_loaded": "xquirks ist nicht geladen. Lade es neu und versuche es noch einmal.",
-      "no_device": "Gerade verwendet keines deiner Geräte eine Datei von xquirks. Ein Gerät, das xquirks in Ruhe lässt (deaktiviert oder in den Optionen ausgewählt), wird nicht angeboten.",
-      "zha_not_loaded": "ZHA ist nicht geladen. Versuche es noch einmal, sobald es läuft.",
-      "device_gone": "Das Gerät verwendet keine Datei von xquirks mehr oder ZHA hat es gerade nicht.",
-      "check_failed": "Die Prüfung ist fehlgeschlagen. Das Home-Assistant-Protokoll nennt den Grund.",
-      "no_entities": "Die Datei fügt diesem Gerät keine Entität hinzu, die die Prüfung zeigen kann."
     }
   },
   "issues": {
@@ -108,7 +154,7 @@
           "held_unreadable_folder": "Nichts wurde geändert: Der Ordner für eigene Quirks ist nicht lesbar.",
           "failed": "Nichts wurde geändert: {failed}\n\nxquirks hat zurückgenommen, was es vor diesem Schritt geändert hatte. Sobald die Ursache behoben ist, zeigt die Reparaturmeldung, was noch zu tun ist.",
           "failed_partly": "Bei einem Fehler angehalten: {failed}\n\nDiese Änderungen konnte xquirks nicht zurücknehmen:\n\n{left}\n\nZHA lädt jetzt oder bei seinem nächsten Start, was in `{folder}` liegt. Die nächste Liste bringt den Rest in Ordnung.",
-          "done": "{done}\n\nZHA lädt `{folder}` jetzt neu: Deine Zigbee-Geräte sind in ein paar Sekunden wieder da.\n\nxquirks beobachtet die Werte jeder installierten oder aktualisierten Datei einen Tag lang. Ein Hinweis sagt dir, wenn sie auffällig wirken. Bei einer Datei, die noch nicht an einem Gerät geprüft ist, kann dich ein Hinweis auch um einen Gerätetest bitten. Um die Werte selbst mit dem Gerät zu vergleichen: Einstellungen > Geräte & Dienste > xquirks > Konfigurieren > Gerät prüfen.",
+          "done": "{done}\n\nZHA lädt `{folder}` jetzt neu: Deine Zigbee-Geräte sind in ein paar Sekunden wieder da.\n\nxquirks beobachtet die Werte jeder installierten oder aktualisierten Datei einen Tag lang. Ein Hinweis sagt dir, wenn sie auffällig wirken. Bei einer Datei, die noch nicht an einem Gerät geprüft ist, kann dich ein Hinweis auch um einen Gerätetest bitten. Um die Werte selbst mit dem Gerät zu vergleichen: Einstellungen > Geräte & Dienste > xquirks > Gerät prüfen.",
           "done_zha_not_loaded": "{done}\n\nZHA ist gerade nicht geladen. Es übernimmt die Änderungen in `{folder}` beim Start.\n\nSobald ZHA läuft, beobachtet xquirks die Werte jeder installierten oder aktualisierten Datei einen Tag lang. Ein Hinweis sagt dir, wenn sie auffällig wirken. Bei einer Datei, die noch nicht an einem Gerät geprüft ist, kann dich ein Hinweis auch um einen Gerätetest bitten.",
           "not_now": "Zurückgestellt: Nichts wurde geändert. Um später zu entscheiden: Einstellungen > System > Reparaturen > Drei-Punkte-Menü > Ignorierte Reparaturen anzeigen. Eine andere Liste kommt als neue Reparaturmeldung."
         }
@@ -124,7 +170,7 @@
         "step": {
           "confirm": {
             "title": "Quirk mit hohem Risiko zurückgehalten",
-            "description": "{picture}{devices}\n\nxquirks hat `{file}` dafür ({status}), hält die Datei aber zurück, bis sie an einem Gerät geprüft ist. {reasons}\n\n**Dateien mit hohem Risiko anbieten** schaltet diese Option ein (Einstellungen > Geräte & Dienste > xquirks > Konfigurieren > Was xquirks anbietet). Die Option gibt jede Datei mit hohem Risiko frei, die gerade zurückgehalten wird:\n\n{files}\n\nDie Änderungsliste bietet sie dann an und fragt noch einmal, bevor sie etwas installiert. **Nicht jetzt** stellt diesen Hinweis zurück.",
+            "description": "{picture}{devices}\n\nxquirks hat `{file}` dafür ({status}), hält die Datei aber zurück, bis sie an einem Gerät geprüft ist. {reasons}\n\n**Dateien mit hohem Risiko anbieten** schaltet diese Option ein (Einstellungen > Geräte & Dienste > xquirks > Konfigurieren). Die Option gibt jede Datei mit hohem Risiko frei, die gerade zurückgehalten wird:\n\n{files}\n\nDie Änderungsliste bietet sie dann an und fragt noch einmal, bevor sie etwas installiert. **Nicht jetzt** stellt diesen Hinweis zurück.",
             "menu_options": {
               "apply": "Dateien mit hohem Risiko anbieten",
               "not_now": "Nicht jetzt"
@@ -136,7 +182,7 @@
           "stale": "Nichts wurde geändert: Die zurückgehaltenen Dateien haben sich geändert, während dieser Dialog offen war. Ein Hinweis, der noch gilt, steht unter Einstellungen > System > Reparaturen.",
           "already_on": "Nichts wurde geändert: **Dateien mit hohem Risiko anbieten** ist schon eingeschaltet. Die Änderungsliste bietet die Dateien an.",
           "held": "Nichts wurde geändert: xquirks kann gerade nicht sagen, welche Dateien es zurückhält, zum Beispiel während eine Änderung darauf wartet, dass ZHA den Ordner für eigene Quirks neu lädt. Öffne diesen Hinweis später noch einmal.",
-          "done": "**Dateien mit hohem Risiko anbieten** ist jetzt eingeschaltet. Die Änderungsliste unter Einstellungen > System > Reparaturen bietet die Dateien dann an. Die Liste fragt, bevor sie etwas installiert. Zum Ausschalten: Einstellungen > Geräte & Dienste > xquirks > Konfigurieren > Was xquirks anbietet.",
+          "done": "**Dateien mit hohem Risiko anbieten** ist jetzt eingeschaltet. Die Änderungsliste unter Einstellungen > System > Reparaturen bietet die Dateien dann an. Die Liste fragt, bevor sie etwas installiert. Zum Ausschalten: Einstellungen > Geräte & Dienste > xquirks > Konfigurieren.",
           "not_now": "Zurückgestellt: Nichts wurde geändert. Um später zu entscheiden: Einstellungen > System > Reparaturen > Drei-Punkte-Menü > Ignorierte Reparaturen anzeigen."
         }
       }
@@ -208,73 +254,12 @@
         "step": {
           "confirm": {
             "title": "Quirk-Werte wirken plausibel",
-            "description": "{picture}xquirks hat `{file}` (Revision {revision}) einen Tag lang beobachtet, nachdem ZHA die Datei geladen hat oder das Gerät eine neue Firmware bekam. Werte der Datei kamen vom Gerät und nichts wirkte auffällig:\n\n{devices}\n\nBitte vergleiche die Werte mit dem Gerät selbst. Dein Gerätetest kann die Datei für alle mit diesem Gerät als geprüft markieren. **Gerät jetzt prüfen** fragt das Gerät nach seinen aktuellen Werten und füllt den Bericht für dich aus. **Nicht prüfen** schließt diesen Hinweis.",
+            "description": "{picture}xquirks hat `{file}` (Revision {revision}) einen Tag lang beobachtet, nachdem ZHA die Datei geladen hat oder das Gerät eine neue Firmware bekam. Werte der Datei kamen vom Gerät und nichts wirkte auffällig:\n\n{devices}\n\nBitte vergleiche die Werte mit dem Gerät selbst. Dein Gerätetest kann die Datei für alle mit diesem Gerät als geprüft markieren.",
             "menu_options": {
               "check": "Gerät jetzt prüfen",
               "skip": "Nicht prüfen"
             }
-          },
-          "check": {
-            "title": "Welches Gerät",
-            "description": "Welches Gerät soll xquirks nach seinen aktuellen Werten fragen? Ein Tuya-Gerät bekommt eine Datenabfrage, bei jedem anderen Gerät liest xquirks die Werte hinter den Entitäten des Quirks. Am Gerät ändert sich dadurch nichts. Wecke ein Batteriegerät vorher auf, zum Beispiel mit seiner Taste.",
-            "data": {
-              "device": "Gerät"
-            }
-          },
-          "values": {
-            "title": "Mit dem Gerät vergleichen",
-            "description": "**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nVergleiche jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut.",
-            "menu_options": {
-              "all_match": "Alle Werte stimmen",
-              "mismatch": "Etwas stimmt nicht"
-            }
-          },
-          "values_no_answer": {
-            "title": "Mit dem Gerät vergleichen",
-            "description": "Das Gerät hat nicht geantwortet. Die Werte unten hat ZHA früher gespeichert. Um es noch einmal zu fragen, wecke es auf, zum Beispiel mit seiner Taste. Öffne diesen Hinweis dann erneut.\n\n**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nVergleiche jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut.",
-            "menu_options": {
-              "all_match": "Alle Werte stimmen",
-              "mismatch": "Etwas stimmt nicht"
-            }
-          },
-          "values_no_answer_mains": {
-            "title": "Mit dem Gerät vergleichen",
-            "description": "Das Gerät hat nicht geantwortet. Die Werte unten hat ZHA früher gespeichert. Es ist gerade nicht erreichbar. Um es noch einmal zu fragen, sieh nach, ob es Strom hat. Öffne diesen Hinweis dann erneut.\n\n**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nVergleiche jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut.",
-            "menu_options": {
-              "all_match": "Alle Werte stimmen",
-              "mismatch": "Etwas stimmt nicht"
-            }
-          },
-          "results": {
-            "title": "Markieren, was nicht stimmt",
-            "description": "**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nMarkiere die Werte, die nicht mit dem Gerät übereinstimmen. Werte, die du als richtig erkannt hast, kommen in die erste Liste.",
-            "data": {
-              "matches": "Stimmen mit dem Gerät überein",
-              "wrong": "Stimmen nicht mit dem Gerät überein"
-            }
-          },
-          "report": {
-            "title": "Gerätetest melden",
-            "description": "Danke! Werte, die mit dem Gerät übereinstimmen: {matches}. Nicht verglichen: {unchecked}.\n\n**Melden** öffnet das Formular auf GitHub. Es ist mit dem Bericht ausgefüllt. Prüfe es und sende es ab. Der Bericht steht auch in den Diagnosedaten von xquirks (Drei-Punkte-Menü der Integration > Diagnosedaten herunterladen).",
-            "submit": "Melden"
-          },
-          "report_wrong": {
-            "title": "Falsche Werte melden",
-            "description": "Werte, die nicht mit dem Gerät übereinstimmen: {wrong}. Übereinstimmend: {matches}. Nicht verglichen: {unchecked}.\n\n**Melden** öffnet das Formular auf GitHub. Es ist mit dem Bericht ausgefüllt. Beschreibe, was das Gerät zeigt, prüfe das Formular und sende es ab. Der Bericht steht auch in den Diagnosedaten von xquirks (Drei-Punkte-Menü der Integration > Diagnosedaten herunterladen).",
-            "submit": "Melden"
-          },
-          "thumbs_up": {
-            "title": "Gerätetest bestätigen",
-            "description": "Danke!\n\nFür dieses Gerät mit derselben Firmware gibt es schon einen Gerätetest auf GitHub. Gib ihm dort einen Daumen hoch: Das zählt als deine Bestätigung (dafür brauchst du ein GitHub-Konto). Bisherige Bestätigungen: {count}. Ab {threshold} kann die Datei für alle als geprüft gelten.\n\nDer Bericht steht auch in den Diagnosedaten von xquirks (Drei-Punkte-Menü der Integration > Diagnosedaten herunterladen).",
-            "submit": "Gerätetest öffnen"
           }
-        },
-        "progress": {
-          "asking": "xquirks fragt das Gerät nach seinen Werten. Das dauert höchstens eine halbe Minute."
-        },
-        "error": {
-          "both": "Markiere jeden Wert nur in einer der beiden Listen.",
-          "nothing": "Markiere mindestens einen Wert."
         },
         "abort": {
           "not_loaded": "xquirks ist nicht geladen. Lade es neu und versuche es noch einmal.",
@@ -286,7 +271,8 @@
           "confirmed": "Nichts zu prüfen: Diese Datei ist jetzt geprüft oder genug Leute haben sie an Geräten wie deinen bestätigt. Der Hinweis ist weg.",
           "skipped": "Erledigt. Dieser Hinweis kommt für diese Revision der Datei nicht wieder.",
           "gone": "Nichts mehr zu tun: Dieser Hinweis wurde inzwischen geschlossen.",
-          "file_changed": "Nichts zu prüfen: Die Datei wurde aktualisiert oder entfernt, seit dieser Hinweis kam."
+          "file_changed": "Nichts zu prüfen: Die Datei wurde aktualisiert oder entfernt, seit dieser Hinweis kam.",
+          "check_started": "Die Geräteprüfung öffnet sich in einem eigenen Dialog."
         }
       }
     },
@@ -296,73 +282,12 @@
         "step": {
           "confirm": {
             "title": "Quirk-Werte wirken auffällig",
-            "description": "{picture}xquirks hat `{file}` (Revision {revision}) einen Tag lang beobachtet, nachdem ZHA die Datei geladen hat oder das Gerät eine neue Firmware bekam. Das wirkte auffällig:\n\n{devices}\n\n**Gerät jetzt prüfen** fragt das Gerät nach seinen aktuellen Werten und macht aus deinem Vergleich einen genauen Bericht. Um nur zu melden, was auffällig wirkte, sieh zuerst in die [offenen Meldungen]({reports}): Wenn eine passt, reicht dort ein Daumen hoch oder ein Kommentar. Sonst [melde es auf GitHub]({link}). Das Formular nennt die Datei und was auffällig wirkte, ohne Namen oder Adressen deiner Geräte. Hänge die Diagnosedaten des Geräts an. **Nicht prüfen** schließt diesen Hinweis.",
+            "description": "{picture}xquirks hat `{file}` (Revision {revision}) einen Tag lang beobachtet, nachdem ZHA die Datei geladen hat oder das Gerät eine neue Firmware bekam. Das wirkte auffällig:\n\n{devices}\n\nUm nur zu melden, was auffällig wirkte, sieh zuerst in die [offenen Meldungen]({reports}): Wenn eine passt, reicht dort ein Daumen hoch oder ein Kommentar. Sonst [melde es auf GitHub]({link}). Das Formular nennt die Datei und was auffällig wirkte, ohne Namen oder Adressen deiner Geräte. Hänge die Diagnosedaten des Geräts an.",
             "menu_options": {
               "check": "Gerät jetzt prüfen",
               "skip": "Nicht prüfen"
             }
-          },
-          "check": {
-            "title": "Welches Gerät",
-            "description": "Welches Gerät soll xquirks nach seinen aktuellen Werten fragen? Ein Tuya-Gerät bekommt eine Datenabfrage, bei jedem anderen Gerät liest xquirks die Werte hinter den Entitäten des Quirks. Am Gerät ändert sich dadurch nichts. Wecke ein Batteriegerät vorher auf, zum Beispiel mit seiner Taste.",
-            "data": {
-              "device": "Gerät"
-            }
-          },
-          "values": {
-            "title": "Mit dem Gerät vergleichen",
-            "description": "**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nVergleiche jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut.",
-            "menu_options": {
-              "all_match": "Alle Werte stimmen",
-              "mismatch": "Etwas stimmt nicht"
-            }
-          },
-          "values_no_answer": {
-            "title": "Mit dem Gerät vergleichen",
-            "description": "Das Gerät hat nicht geantwortet. Die Werte unten hat ZHA früher gespeichert. Um es noch einmal zu fragen, wecke es auf, zum Beispiel mit seiner Taste. Öffne diesen Hinweis dann erneut.\n\n**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nVergleiche jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut.",
-            "menu_options": {
-              "all_match": "Alle Werte stimmen",
-              "mismatch": "Etwas stimmt nicht"
-            }
-          },
-          "values_no_answer_mains": {
-            "title": "Mit dem Gerät vergleichen",
-            "description": "Das Gerät hat nicht geantwortet. Die Werte unten hat ZHA früher gespeichert. Es ist gerade nicht erreichbar. Um es noch einmal zu fragen, sieh nach, ob es Strom hat. Öffne diesen Hinweis dann erneut.\n\n**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nVergleiche jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut.",
-            "menu_options": {
-              "all_match": "Alle Werte stimmen",
-              "mismatch": "Etwas stimmt nicht"
-            }
-          },
-          "results": {
-            "title": "Markieren, was nicht stimmt",
-            "description": "**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nMarkiere die Werte, die nicht mit dem Gerät übereinstimmen. Werte, die du als richtig erkannt hast, kommen in die erste Liste.",
-            "data": {
-              "matches": "Stimmen mit dem Gerät überein",
-              "wrong": "Stimmen nicht mit dem Gerät überein"
-            }
-          },
-          "report": {
-            "title": "Gerätetest melden",
-            "description": "Danke! Werte, die mit dem Gerät übereinstimmen: {matches}. Nicht verglichen: {unchecked}.\n\n**Melden** öffnet das Formular auf GitHub. Es ist mit dem Bericht ausgefüllt. Prüfe es und sende es ab. Der Bericht steht auch in den Diagnosedaten von xquirks (Drei-Punkte-Menü der Integration > Diagnosedaten herunterladen).",
-            "submit": "Melden"
-          },
-          "report_wrong": {
-            "title": "Falsche Werte melden",
-            "description": "Werte, die nicht mit dem Gerät übereinstimmen: {wrong}. Übereinstimmend: {matches}. Nicht verglichen: {unchecked}.\n\n**Melden** öffnet das Formular auf GitHub. Es ist mit dem Bericht ausgefüllt. Beschreibe, was das Gerät zeigt, prüfe das Formular und sende es ab. Der Bericht steht auch in den Diagnosedaten von xquirks (Drei-Punkte-Menü der Integration > Diagnosedaten herunterladen).",
-            "submit": "Melden"
-          },
-          "thumbs_up": {
-            "title": "Gerätetest bestätigen",
-            "description": "Danke!\n\nFür dieses Gerät mit derselben Firmware gibt es schon einen Gerätetest auf GitHub. Gib ihm dort einen Daumen hoch: Das zählt als deine Bestätigung (dafür brauchst du ein GitHub-Konto). Bisherige Bestätigungen: {count}. Ab {threshold} kann die Datei für alle als geprüft gelten.\n\nDer Bericht steht auch in den Diagnosedaten von xquirks (Drei-Punkte-Menü der Integration > Diagnosedaten herunterladen).",
-            "submit": "Gerätetest öffnen"
           }
-        },
-        "progress": {
-          "asking": "xquirks fragt das Gerät nach seinen Werten. Das dauert höchstens eine halbe Minute."
-        },
-        "error": {
-          "both": "Markiere jeden Wert nur in einer der beiden Listen.",
-          "nothing": "Markiere mindestens einen Wert."
         },
         "abort": {
           "not_loaded": "xquirks ist nicht geladen. Lade es neu und versuche es noch einmal.",
@@ -374,7 +299,8 @@
           "confirmed": "Nichts zu prüfen: Diese Datei ist jetzt geprüft oder genug Leute haben sie an Geräten wie deinen bestätigt. Der Hinweis ist weg.",
           "skipped": "Erledigt. Dieser Hinweis kommt für diese Revision der Datei nicht wieder.",
           "gone": "Nichts mehr zu tun: Dieser Hinweis wurde inzwischen geschlossen.",
-          "file_changed": "Nichts zu prüfen: Die Datei wurde aktualisiert oder entfernt, seit dieser Hinweis kam."
+          "file_changed": "Nichts zu prüfen: Die Datei wurde aktualisiert oder entfernt, seit dieser Hinweis kam.",
+          "check_started": "Die Geräteprüfung öffnet sich in einem eigenen Dialog."
         }
       }
     },
@@ -384,73 +310,12 @@
         "step": {
           "confirm": {
             "title": "Noch keine Werte vom Gerät",
-            "description": "{picture}xquirks hat `{file}` (Revision {revision}) einen Tag lang beobachtet, nachdem ZHA die Datei geladen hat oder das Gerät eine neue Firmware bekam. Keiner der Werte der Datei kam vom Gerät, deshalb kann xquirks nicht sagen, ob sie stimmen:\n\n{devices}\n\n**Gerät jetzt prüfen** fragt das Gerät nach seinen aktuellen Werten. Vergleiche sie mit dem Gerät. Dein Bericht hilft allen mit diesem Gerät. **Nicht prüfen** schließt diesen Hinweis.",
+            "description": "{picture}xquirks hat `{file}` (Revision {revision}) einen Tag lang beobachtet, nachdem ZHA die Datei geladen hat oder das Gerät eine neue Firmware bekam. Keiner der Werte der Datei kam vom Gerät, deshalb kann xquirks nicht sagen, ob sie stimmen:\n\n{devices}\n\nDein Bericht hilft allen mit diesem Gerät.",
             "menu_options": {
               "check": "Gerät jetzt prüfen",
               "skip": "Nicht prüfen"
             }
-          },
-          "check": {
-            "title": "Welches Gerät",
-            "description": "Welches Gerät soll xquirks nach seinen aktuellen Werten fragen? Ein Tuya-Gerät bekommt eine Datenabfrage, bei jedem anderen Gerät liest xquirks die Werte hinter den Entitäten des Quirks. Am Gerät ändert sich dadurch nichts. Wecke ein Batteriegerät vorher auf, zum Beispiel mit seiner Taste.",
-            "data": {
-              "device": "Gerät"
-            }
-          },
-          "values": {
-            "title": "Mit dem Gerät vergleichen",
-            "description": "**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nVergleiche jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut.",
-            "menu_options": {
-              "all_match": "Alle Werte stimmen",
-              "mismatch": "Etwas stimmt nicht"
-            }
-          },
-          "values_no_answer": {
-            "title": "Mit dem Gerät vergleichen",
-            "description": "Das Gerät hat nicht geantwortet. Die Werte unten hat ZHA früher gespeichert. Um es noch einmal zu fragen, wecke es auf, zum Beispiel mit seiner Taste. Öffne diesen Hinweis dann erneut.\n\n**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nVergleiche jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut.",
-            "menu_options": {
-              "all_match": "Alle Werte stimmen",
-              "mismatch": "Etwas stimmt nicht"
-            }
-          },
-          "values_no_answer_mains": {
-            "title": "Mit dem Gerät vergleichen",
-            "description": "Das Gerät hat nicht geantwortet. Die Werte unten hat ZHA früher gespeichert. Es ist gerade nicht erreichbar. Um es noch einmal zu fragen, sieh nach, ob es Strom hat. Öffne diesen Hinweis dann erneut.\n\n**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nVergleiche jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut.",
-            "menu_options": {
-              "all_match": "Alle Werte stimmen",
-              "mismatch": "Etwas stimmt nicht"
-            }
-          },
-          "results": {
-            "title": "Markieren, was nicht stimmt",
-            "description": "**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nMarkiere die Werte, die nicht mit dem Gerät übereinstimmen. Werte, die du als richtig erkannt hast, kommen in die erste Liste.",
-            "data": {
-              "matches": "Stimmen mit dem Gerät überein",
-              "wrong": "Stimmen nicht mit dem Gerät überein"
-            }
-          },
-          "report": {
-            "title": "Gerätetest melden",
-            "description": "Danke! Werte, die mit dem Gerät übereinstimmen: {matches}. Nicht verglichen: {unchecked}.\n\n**Melden** öffnet das Formular auf GitHub. Es ist mit dem Bericht ausgefüllt. Prüfe es und sende es ab. Der Bericht steht auch in den Diagnosedaten von xquirks (Drei-Punkte-Menü der Integration > Diagnosedaten herunterladen).",
-            "submit": "Melden"
-          },
-          "report_wrong": {
-            "title": "Falsche Werte melden",
-            "description": "Werte, die nicht mit dem Gerät übereinstimmen: {wrong}. Übereinstimmend: {matches}. Nicht verglichen: {unchecked}.\n\n**Melden** öffnet das Formular auf GitHub. Es ist mit dem Bericht ausgefüllt. Beschreibe, was das Gerät zeigt, prüfe das Formular und sende es ab. Der Bericht steht auch in den Diagnosedaten von xquirks (Drei-Punkte-Menü der Integration > Diagnosedaten herunterladen).",
-            "submit": "Melden"
-          },
-          "thumbs_up": {
-            "title": "Gerätetest bestätigen",
-            "description": "Danke!\n\nFür dieses Gerät mit derselben Firmware gibt es schon einen Gerätetest auf GitHub. Gib ihm dort einen Daumen hoch: Das zählt als deine Bestätigung (dafür brauchst du ein GitHub-Konto). Bisherige Bestätigungen: {count}. Ab {threshold} kann die Datei für alle als geprüft gelten.\n\nDer Bericht steht auch in den Diagnosedaten von xquirks (Drei-Punkte-Menü der Integration > Diagnosedaten herunterladen).",
-            "submit": "Gerätetest öffnen"
           }
-        },
-        "progress": {
-          "asking": "xquirks fragt das Gerät nach seinen Werten. Das dauert höchstens eine halbe Minute."
-        },
-        "error": {
-          "both": "Markiere jeden Wert nur in einer der beiden Listen.",
-          "nothing": "Markiere mindestens einen Wert."
         },
         "abort": {
           "not_loaded": "xquirks ist nicht geladen. Lade es neu und versuche es noch einmal.",
@@ -462,7 +327,8 @@
           "confirmed": "Nichts zu prüfen: Diese Datei ist jetzt geprüft oder genug Leute haben sie an Geräten wie deinen bestätigt. Der Hinweis ist weg.",
           "skipped": "Erledigt. Dieser Hinweis kommt für diese Revision der Datei nicht wieder.",
           "gone": "Nichts mehr zu tun: Dieser Hinweis wurde inzwischen geschlossen.",
-          "file_changed": "Nichts zu prüfen: Die Datei wurde aktualisiert oder entfernt, seit dieser Hinweis kam."
+          "file_changed": "Nichts zu prüfen: Die Datei wurde aktualisiert oder entfernt, seit dieser Hinweis kam.",
+          "check_started": "Die Geräteprüfung öffnet sich in einem eigenen Dialog."
         }
       }
     }

@@ -140,7 +140,7 @@ async def test_a_held_back_file_gets_an_ignorable_notice_and_is_not_downloaded(h
         "- Radar (\\_TZE200\\_aaaa TS0601), runs no quirk\n\n"
         "xquirks has `z2m_tuya_a.py` for it (generated, not verified on a device yet) but holds it back until it is verified on a device."
         " It controls a cover. It changes number settings. The device may accept a smaller range.\n\n"
-        "**Offer high-risk files** turns on that option (Settings > Devices & services > xquirks > Configure > What xquirks offers)."
+        "**Offer high-risk files** turns on that option (Settings > Devices & services > xquirks > Configure)."
         " It releases every high-risk file held back now:\n\n- `z2m_tuya_a.py` (Tuya A)\n\n"
         "The change list then offers them and asks again before it installs anything. **Not now** puts this notice aside."
     )

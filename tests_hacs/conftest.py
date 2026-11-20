@@ -489,25 +489,57 @@ def issue_of(hass: HomeAssistant, kind: str, file: str | None = None) -> ir.Issu
     return found[0]
 
 
+def _check_page(texts: dict, result: dict) -> None:
+    """A form or menu renders with the placeholders it got, its fields, options and errors have texts."""
+    step = texts["step"][result["step_id"]]
+    render(step["description"], result["description_placeholders"])
+    for option in result.get("menu_options", []):
+        assert option in step["menu_options"]
+    if result["type"] == "form" and result.get("data_schema"):
+        for field_name in result["data_schema"].schema:
+            assert str(field_name) in step["data"]
+    elif result["type"] == "form":
+        # A page without fields: its one button has a text of its own.
+        assert step["submit"]
+    for error in (result.get("errors") or {}).values():
+        assert error in texts["error"]
+    # No placeholder handed to a step goes unused: each one is there for the text.
+    unused = set(result.get("description_placeholders") or {}) - {name for name in _fields(step["description"])}
+    assert not unused, unused
+
+
 def check_flow_texts(kind: str, result: dict) -> dict:
     """The step or abort text of a fix flow result renders with the placeholders it got."""
     flow = STRINGS["issues"][kind]["fix_flow"]
     if result["type"] in ("form", "menu"):
-        step = flow["step"][result["step_id"]]
-        render(step["description"], result["description_placeholders"])
-        for option in result.get("menu_options", []):
-            assert option in step["menu_options"]
-        if result["type"] == "form" and result.get("data_schema"):
-            for field_name in result["data_schema"].schema:
-                assert str(field_name) in step["data"]
-        # No placeholder handed to a step goes unused: each one is there for the text.
-        unused = set(result.get("description_placeholders") or {}) - {name for name in _fields(step["description"])}
-        assert not unused, unused
+        _check_page(flow, result)
     elif result["type"] == "abort":
         render(flow["abort"][result["reason"]], result["description_placeholders"])
+    elif result["type"] in ("progress", "external"):
+        # The device check runs in a flow of its own (check_device_check_texts).
+        raise AssertionError(result)
+    return result
+
+
+def check_device_check_texts(result: dict) -> dict:
+    """The text of a device check result (the subentry flow "device_check") renders with the placeholders it got: its
+    pages, its progress dialog, the page after the button (the subentry dialog shows its text, not its title) and its
+    aborts."""
+    flow = STRINGS["config_subentries"]["device_check"]
+    if result["type"] in ("form", "menu"):
+        _check_page(flow, result)
+    elif result["type"] == "progress":
+        assert flow["progress"][result["progress_action"]] and flow["step"][result["step_id"]]["title"]
     elif result["type"] == "external":
         # Home Assistant's frontend opens only http(s) addresses.
         assert result["url"].startswith("https://"), result
+        step = flow["step"][result["step_id"]]
+        assert step["title"] and set(step) == {"title", "description"}, step
+        render(step["description"], result["description_placeholders"])
+    elif result["type"] == "abort":
+        render(flow["abort"][result["reason"]], result["description_placeholders"])
+    else:
+        raise AssertionError(result)
     return result
 
 
@@ -522,6 +554,18 @@ async def start_fix(hass: HomeAssistant, issue: ir.IssueEntry) -> dict:
 
 
 async def continue_fix(hass: HomeAssistant, flow: dict, user_input: dict | None = None) -> dict:
+    """The next step of a notice's flow: its fix flow, or the device check it handed over to (continue_check)."""
+    if isinstance(flow["handler"], tuple):
+        return await continue_check(hass, flow, user_input)
     result = await hass.data["repairs"]["flow_manager"].async_configure(flow["flow_id"], user_input)
     result["kind"] = flow["kind"]
     return check_flow_texts(flow["kind"], result)
+
+
+async def continue_check(hass: HomeAssistant, flow: dict, user_input: dict | None = None) -> dict:
+    """The next step of a device check (a subentry flow): what the dialog sends, or None as the frontend's GET of the flow
+    sends it. The kind of the notice it came from goes along."""
+    assert isinstance(flow["handler"], tuple) and flow["handler"][1] == "device_check", flow
+    result = await hass.config_entries.subentries.async_configure(flow["flow_id"], user_input)
+    result["kind"] = flow.get("kind")
+    return check_device_check_texts(result)

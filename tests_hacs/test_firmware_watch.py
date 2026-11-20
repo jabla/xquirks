@@ -244,8 +244,7 @@ async def test_a_device_check_from_the_notice_closes_it_with_the_button(hass: Ho
         assert watch_of(hass, device)["checked"] is True and not watch_of(hass, device).get("closed")
         assert manager_of(hass).summary()["firmware_checks"][0]["device_check_done"] is True
         if not clicked:
-            # The dialog's X: Home Assistant deletes the flow.
-            hass.data["repairs"]["flow_manager"].async_abort(flow["flow_id"])
+            # The dialog's X deletes no check a notice handed over: the notice stays, its next handover ends this check.
             assert [i.issue_id for i in firmware_notices(hass)] == [issue.issue_id]
     opened = await continue_fix(hass, flow, {})
     assert opened["type"] is FlowResultType.EXTERNAL_STEP and opened["step_id"] == "open"
@@ -253,7 +252,7 @@ async def test_a_device_check_from_the_notice_closes_it_with_the_button(hass: Ho
     assert len(manager_of(hass).checks.reports) == 2
 
 
-@pytest.mark.parametrize("flow", ["notice", "options"])
+@pytest.mark.parametrize("flow", ["notice", "button"])
 async def test_the_button_closes_only_what_its_check_answered(hass: HomeAssistant, zha: Zha, repo_dir: Path, aioclient_mock, flow: str):
     """A check reaches its last page while the device runs firmware A. Then the device updates to B, that firmware watch
     ends with its own notice. The button closes the file's notice the check answered, not the notice of firmware B: the
@@ -261,20 +260,19 @@ async def test_the_button_closes_only_what_its_check_answered(hass: HomeAssistan
     (device,), _search = await done_installed(hass, zha, repo_dir, aioclient_mock)
     (file_notice,) = file_notices(hass)
     answers(device)
-    options = hass.config_entries.options
     if flow == "notice":
         result = await start_fix(hass, file_notice)
         result = await ask(hass, result, {"next_step_id": "check"})
         result = await continue_fix(hass, result, {"next_step_id": "all_match"})
     else:
         result = await run_check(hass, hass.config_entries.async_entries(const.DOMAIN)[0], device.device_id)
-        result = await options.async_configure(result["flow_id"], {"matches": ["1-temperature"], "wrong": []})
+        result = await continue_fix(hass, result, {"matches": ["1-temperature"], "wrong": []})
     assert result["type"] is FlowResultType.FORM and result["step_id"] == "report", result
     await update(hass, device, FIRMWARE_B)
     await conclude(hass)
     (firmware_notice,) = firmware_notices(hass)
     assert watch_of(hass, device)["firmware"] == FIRMWARE_B
-    opened = await (continue_fix(hass, result, {}) if flow == "notice" else options.async_configure(result["flow_id"], {}))
+    opened = await continue_fix(hass, result, {})
     assert opened["type"] is FlowResultType.EXTERNAL_STEP
     assert file_notices(hass) == [] and [i.issue_id for i in firmware_notices(hass)] == [firmware_notice.issue_id]
     assert not watch_of(hass, device).get("closed") and not watch_of(hass, device).get("checked")

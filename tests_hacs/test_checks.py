@@ -1,4 +1,4 @@
-"""The device check (the options' "Check a device") and the self-check after an install.
+"""The device check (the integration page's "Check a device") and the self-check after an install.
 
 The devices here have clusters that send values the way zigpy does (cluster events, the Tuya MCU
 cluster's commands) and ZHA entities that read them: what the listeners see. A test at the end does the
@@ -29,7 +29,7 @@ from homeassistant.util import dt as dt_util
 from pytest_homeassistant.common import async_fire_time_changed, flush_store
 
 from . import integration
-from .conftest import REPOS, STRINGS, Zha, apply_list, issues_of, manager_of, render, setup_entry, write_repo
+from .conftest import REPOS, STRINGS, Zha, apply_list, check_device_check_texts, continue_check, issues_of, manager_of, setup_entry, write_repo
 from .integration import PACKAGE, ROOT, const, diagnostics
 from .test_content import restart_with
 
@@ -704,54 +704,41 @@ async def test_listeners_follow_zha_and_go_at_unload(hass: HomeAssistant, zha: Z
 
 
 async def open_check(hass: HomeAssistant, entry) -> dict:
-    result = await hass.config_entries.options.async_init(entry.entry_id)
-    assert result["type"] is FlowResultType.MENU
-    return await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "check"})
-
-
-async def run_check(hass: HomeAssistant, entry, device_id: str) -> dict:
-    """Pick the device, wait for the progress step to end: the results form."""
-    result = await open_check(hass, entry)
-    assert result["type"] is FlowResultType.FORM and result["step_id"] == "check"
-    with patch.object(checks, "CHECK_WAIT", 0.3), patch.object(checks, "CHECK_QUIET", 0.05), patch.object(checks, "CHECK_STEP", 0.05):
-        result = await hass.config_entries.options.async_configure(result["flow_id"], {"device": device_id})
-        if result["type"] is not FlowResultType.SHOW_PROGRESS:
-            # A check that sends nothing can be done before the progress dialog would show.
-            return check_texts(result)
-        assert result["progress_action"] == "asking"
-        await hass.async_block_till_done(wait_background_tasks=True)
-    result = await hass.config_entries.options.async_configure(result["flow_id"])
+    """The integration page's "Check a device" (its button or the three-dot menu): the device check, a subentry flow of
+    the entry with the source "user". It starts with the device picker."""
+    result = await hass.config_entries.subentries.async_init((entry.entry_id, "device_check"), context={"source": "user"})
     return check_texts(result)
 
 
-def check_texts(result: dict) -> dict:
-    """The options texts of a step or abort render with its placeholders."""
-    options = STRINGS["options"]
-    if result["type"] is FlowResultType.FORM:
-        step = options["step"][result["step_id"]]
-        render(step["description"], result["description_placeholders"])
-        if result["data_schema"] is None:
-            # A page without fields: its one button has a text of its own.
-            assert step["submit"]
-        else:
-            for key in result["data_schema"].schema:
-                assert str(key) in step["data"]
-        for error in (result.get("errors") or {}).values():
-            assert error in options["error"]
-    elif result["type"] is FlowResultType.ABORT:
-        render(options["abort"][result["reason"]], result["description_placeholders"])
-    elif result["type"] is FlowResultType.EXTERNAL_STEP:
-        # Home Assistant's frontend opens only http(s) addresses.
-        assert result["url"].startswith("https://"), result
+async def run_check(hass: HomeAssistant, entry, device_id: str, *, to_list: bool = True) -> dict:
+    """Pick the device, wait for the progress step to end: the values page, with to_list its "Something does not match"
+    (the list where the user marks what matches the device and what does not)."""
+    result = await open_check(hass, entry)
+    assert result["type"] is FlowResultType.FORM and result["step_id"] == "check"
+    with patch.object(checks, "CHECK_WAIT", 0.3), patch.object(checks, "CHECK_QUIET", 0.05), patch.object(checks, "CHECK_STEP", 0.05):
+        result = await continue_check(hass, result, {"device": device_id})
+        if result["type"] is FlowResultType.SHOW_PROGRESS:
+            assert result["progress_action"] == "asking"
+            await hass.async_block_till_done(wait_background_tasks=True)
+            result = await continue_check(hass, result)
+    if to_list and result["type"] is FlowResultType.MENU:
+        assert result["menu_options"] == ["all_match", "mismatch"], result
+        result = await continue_check(hass, result, {"next_step_id": "mismatch"})
     return result
 
 
+def check_texts(result: dict) -> dict:
+    """The device check's texts of a step or abort render with its placeholders."""
+    result.setdefault("kind", None)
+    return check_device_check_texts(result)
+
+
 async def report_link(hass: HomeAssistant, result: dict, step: str = "report") -> str:
-    """The last page of the options check: a page without fields whose one button opens the link (the form) as an
-    external step, as the notice's last page does. The link."""
+    """The last page of the device check: a page without fields whose one button opens the link (the form) as an
+    external step. The link."""
     assert result["type"] is FlowResultType.FORM and result["step_id"] == step and result["data_schema"] is None, result
-    opened = check_texts(await hass.config_entries.options.async_configure(result["flow_id"], {}))
-    assert opened["type"] is FlowResultType.EXTERNAL_STEP and opened["step_id"] == "open", opened
+    opened = await continue_check(hass, result, {})
+    assert opened["type"] is FlowResultType.EXTERNAL_STEP and opened["step_id"] == ("open_test" if step == "thumbs_up" else "open"), opened
     return opened["url"]
 
 
@@ -789,7 +776,7 @@ async def test_a_tuya_device_check_ends_with_a_filled_in_device_test(hass: HomeA
     assert "| sensor: Humidity | 1-humidity |  | 48 | % | stored |  |" in shown.replace("\\_", "_")
     assert "Tuya datapoints this file does not show: 120." in shown
     assert IEEE_A not in shown and "kitchen" not in shown.lower()
-    result = check_texts(await hass.config_entries.options.async_configure(result["flow_id"], {"matches": ["1-temperature", "1-max_temp"], "wrong": []}))
+    result = await continue_check(hass, result, {"matches": ["1-temperature", "1-max_temp"], "wrong": []})
     assert result["type"] is FlowResultType.FORM and result["step_id"] == "report"
     assert result["description_placeholders"] == {"matches": "2", "unchecked": "1"}
     # The report is kept when the last page shows. The notice stays until its button is clicked.
@@ -847,7 +834,7 @@ async def test_refusals_are_heard_only_while_a_check_runs_and_the_device_check_l
     listed = f"Tuya datapoints this file refused: 2 ({text.plain(REFUSAL)})"
     assert heard == [True] and f"{listed}." in result["description_placeholders"]["entities"]
     assert integration.watch.REFUSALS not in zcl.handlers
-    result = check_texts(await hass.config_entries.options.async_configure(result["flow_id"], {"matches": ["1-temperature"], "wrong": []}))
+    result = await continue_check(hass, result, {"matches": ["1-temperature"], "wrong": []})
     assert f"- {listed}\n" in link_fields(await report_link(hass, result))["report"]
 
 
@@ -890,9 +877,9 @@ async def test_a_value_marked_wrong_goes_to_the_wrong_value_form(hass: HomeAssis
     result = await run_check(hass, entry, device.device_id)
     # Each value in one list only, at least one value.
     for answers, error in (({"matches": ["1-temperature"], "wrong": ["1-temperature"]}, "both"), ({"matches": [], "wrong": []}, "nothing")):
-        result = check_texts(await hass.config_entries.options.async_configure(result["flow_id"], answers))
+        result = await continue_check(hass, result, answers)
         assert result["type"] is FlowResultType.FORM and result["errors"] == {"base": error}
-    result = check_texts(await hass.config_entries.options.async_configure(result["flow_id"], {"matches": ["1-max_temp"], "wrong": ["1-temperature"]}))
+    result = await continue_check(hass, result, {"matches": ["1-max_temp"], "wrong": ["1-temperature"]})
     assert result["step_id"] == "report_wrong" and result["description_placeholders"] == {"wrong": "1", "matches": "1", "unchecked": "1"}
     fields = link_fields(await report_link(hass, result, "report_wrong"))
     assert fields["template"] == text.PROBLEM_FORM and set(fields) - {"template", "title"} <= form_ids(text.PROBLEM_FORM)
@@ -901,13 +888,13 @@ async def test_a_value_marked_wrong_goes_to_the_wrong_value_form(hass: HomeAssis
 
 
 @pytest.mark.parametrize(
-    ("power", "error"),
-    [("unknown", "no_answer"), ("battery", "no_answer"), ("zha_mains", "no_answer_mains"), ("node_mains", "no_answer_mains")],
+    ("power", "step"),
+    [("unknown", "values_no_answer"), ("battery", "values_no_answer"), ("zha_mains", "values_no_answer_mains"), ("node_mains", "values_no_answer_mains")],
 )
-async def test_a_device_that_does_not_answer_says_so_above_the_form(hass: HomeAssistant, zha: Zha, repo_dir: Path, power: str, error: str):
+async def test_a_device_that_does_not_answer_says_so_on_the_values_page(hass: HomeAssistant, zha: Zha, repo_dir: Path, power: str, step: str):
     """A battery device (or one whose power source is unknown) may sleep: wake it. A mains device that
     does not answer cannot be reached: see that it has power. The power source as ZHA shows it, else
-    from zigpy's node descriptor."""
+    from zigpy's node descriptor. The list after "Something does not match" does not say it again."""
     device = radar(hass, zha)
     if power == "zha_mains":
         device.mains = True
@@ -915,9 +902,11 @@ async def test_a_device_that_does_not_answer_says_so_above_the_form(hass: HomeAs
         device.zigpy.node_desc = SimpleNamespace(is_mains_powered=power == "node_mains")
     await installed(hass, zha, repo_dir, {IEEE_A: TUYA_A})
     entry = hass.config_entries.async_entries(const.DOMAIN)[0]
-    result = await run_check(hass, entry, device.device_id)
-    assert result["errors"] == {"base": error}
+    result = await run_check(hass, entry, device.device_id, to_list=False)
+    assert result["type"] is FlowResultType.MENU and result["step_id"] == step and result["menu_options"] == ["all_match", "mismatch"]
     assert "Asked the device: Tuya data query, no answer." in result["description_placeholders"]["entities"]
+    result = await continue_check(hass, result, {"next_step_id": "mismatch"})
+    assert result["type"] is FlowResultType.FORM and result["step_id"] == "results" and not result["errors"]
 
 
 async def test_a_zcl_device_check_reads_the_files_attributes_from_the_device(hass: HomeAssistant, zha: Zha, repo_dir: Path):
@@ -933,7 +922,7 @@ async def test_a_zcl_device_check_reads_the_files_attributes_from_the_device(has
     shown = result["description_placeholders"]["entities"]
     assert "Asked the device: read of 1 attribute, it answered." in shown
     assert [option["value"] for option in result["data_schema"].schema["matches"].config["options"]] == ["1-mode", "1-temperature"]
-    result = check_texts(await hass.config_entries.options.async_configure(result["flow_id"], {"matches": ["1-temperature"]}))
+    result = await continue_check(hass, result, {"matches": ["1-temperature"]})
     report = link_fields(await report_link(hass, result))["report"]
     assert "Other entities of the device (not part of the check): sensor: Rssi" in report
 
@@ -966,7 +955,7 @@ async def test_a_check_while_an_update_waits_for_zha_names_no_revision(hass: Hom
     result = await run_check(hass, entry, device.device_id)
     assert result["description_placeholders"]["revision"] == "unknown"
     assert text.WAITING in result["description_placeholders"]["entities"]
-    result = check_texts(await hass.config_entries.options.async_configure(result["flow_id"], {"matches": ["1-temperature"]}))
+    result = await continue_check(hass, result, {"matches": ["1-temperature"]})
     fields = link_fields(await report_link(hass, result))
     assert fields["revision"] == "unknown"
     assert f"- File: `z2m_tuya_a.py`, revision unknown ({text.WAITING_SHORT})\n" in fields["report"]
@@ -1058,10 +1047,10 @@ async def test_a_check_that_asks_nothing_does_not_claim_a_silent_device(hass: Ho
     await installed(hass, zha, repo_dir, {IEEE_C: ACME_C})
     entry = hass.config_entries.async_entries(const.DOMAIN)[0]
     device.state("mode", "eco", options=["eco", "comfort"])
-    result = await run_check(hass, entry, device.device_id)
-    assert result["step_id"] == "results" and not result["errors"]
+    result = await run_check(hass, entry, device.device_id, to_list=False)
+    assert result["type"] is FlowResultType.MENU and result["step_id"] == "values"
     assert result["description_placeholders"]["entities"].startswith("Asked the device: nothing (the file's values come only when the device sends them).\n\n")
-    result = check_texts(await hass.config_entries.options.async_configure(result["flow_id"], {"matches": ["1-mode"]}))
+    result = await continue_check(hass, result, {"next_step_id": "all_match"})
     assert "- Asked the device: nothing (the file's values come only when the device sends them)\n" in link_fields(await report_link(hass, result))["report"]
 
 
@@ -1079,7 +1068,7 @@ async def test_a_device_that_never_answers_a_read_ends_the_check_in_time(hass: H
         result = await asyncio.wait_for(manager_of(hass).checks.async_run_check(device.device_id), 3)
     assert (result.asked, result.answer, result.answered) == ("read of 1 attribute", "stopped waiting after 0.1 s", False)
     assert checks.CHECK_ASK + checks.CHECK_WAIT <= 30
-    assert "half a minute" in STRINGS["options"]["progress"]["asking"]
+    assert "half a minute" in STRINGS["config_subentries"]["device_check"]["progress"]["asking"]
 
 
 async def test_the_read_names_one_attribute_in_the_singular(hass: HomeAssistant, zha: Zha, repo_dir: Path):
@@ -1167,7 +1156,7 @@ async def test_an_entity_without_a_name_goes_by_its_translation_key_or_device_cl
     result = await run_check(hass, entry, device.device_id)
     labels = [option["label"] for option in result["data_schema"].schema["matches"].config["options"]]
     assert labels == ["binary_sensor: occupancy: on", "binary_sensor: 1-1031: off", "binary_sensor: 1-1032: off", "sensor: distance: 600 cm", "sensor: human_motion_state: small"]
-    result = check_texts(await hass.config_entries.options.async_configure(result["flow_id"], {"matches": ["1-1030"]}))
+    result = await continue_check(hass, result, {"matches": ["1-1030"]})
     report = link_fields(await report_link(hass, result))["report"].replace("\\_", "_")
     assert "| yes | binary_sensor: occupancy | 1-1030 |" in report
     assert "by the user" not in report and "garage" not in report and "pantry" not in report and "kitchen" not in report.lower()
@@ -1188,7 +1177,7 @@ async def test_the_check_offers_only_devices_that_run_a_file_of_ours(hass: HomeA
     await setup_entry(hass, repo_dir)
     entry = hass.config_entries.async_entries(const.DOMAIN)[0]
     result = check_texts(await open_check(hass, entry))
-    assert result["type"] is FlowResultType.ABORT and result["reason"] == "no_device"
+    assert result["type"] is FlowResultType.ABORT and result["reason"] == "nothing_to_check"
     await apply_list(hass)
     zha.reload({IEEE_A: TUYA_A})
     await settle(hass)
@@ -1197,7 +1186,7 @@ async def test_the_check_offers_only_devices_that_run_a_file_of_ours(hass: HomeA
     # Left out in the options: not offered.
     hass.config_entries.async_update_entry(entry, options={const.CONF_EXCLUDED: [device.device_id]})
     await hass.async_block_till_done(wait_background_tasks=True)
-    assert check_texts(await open_check(hass, entry))["reason"] == "no_device"
+    assert check_texts(await open_check(hass, entry))["reason"] == "nothing_to_check"
 
 
 async def test_without_zha_the_check_asks_nothing(hass: HomeAssistant, zha: Zha, repo_dir: Path):
@@ -1207,7 +1196,7 @@ async def test_without_zha_the_check_asks_nothing(hass: HomeAssistant, zha: Zha,
     result = await open_check(hass, entry)
     zha.start_reload()
     # The check ends before it asks anything: no progress dialog.
-    result = check_texts(await hass.config_entries.options.async_configure(result["flow_id"], {"device": device.device_id}))
+    result = await continue_check(hass, result, {"device": device.device_id})
     assert result["type"] is FlowResultType.ABORT and result["reason"] == "zha_not_loaded"
     assert device.clusters[0xEF00].sent == [const.TUYA_QUERY_DATA]
 
@@ -1218,7 +1207,7 @@ async def test_without_zha_the_check_asks_nothing(hass: HomeAssistant, zha: Zha,
 async def finish_check(hass: HomeAssistant, entry, device: LiveDevice) -> None:
     """A device check of the device to its last dialog and its button: the temperature marked as matching."""
     result = await run_check(hass, entry, device.device_id)
-    result = check_texts(await hass.config_entries.options.async_configure(result["flow_id"], {"matches": ["1-temperature"]}))
+    result = await continue_check(hass, result, {"matches": ["1-temperature"]})
     await report_link(hass, result)
 
 
@@ -1520,7 +1509,7 @@ async def test_the_device_check_does_not_offer_a_disabled_entity(hass: HomeAssis
     assert device.clusters[0x0402].reads == [(["measured_value"], False)]
     assert [option["value"] for option in result["data_schema"].schema["matches"].config["options"]] == ["1-mode", "1-temperature"]
     assert "humidity" not in result["description_placeholders"]["entities"].lower()
-    result = check_texts(await hass.config_entries.options.async_configure(result["flow_id"], {"matches": ["1-temperature"]}))
+    result = await continue_check(hass, result, {"matches": ["1-temperature"]})
     report = link_fields(await report_link(hass, result))["report"]
     assert "Disabled in Home Assistant (not part of the check): sensor: Humidity value" in report
     assert "| not checked | sensor: Humidity" not in report and "pantry" not in report.lower()
@@ -1578,10 +1567,13 @@ def test_a_long_self_check_link_leaves_out_the_last_findings():
 
 def test_the_forms_ask_for_what_the_links_fill_in():
     """The device check's report goes into the Device test form's report field. The link fills the form in, so its text
-    only points a test without the integration to the probe."""
+    says nothing about the probe: the report field points a test without the integration to it."""
     form = yaml.safe_load((FORMS / text.VERIFY_FORM).read_text())
     intro = form["body"][0]["attributes"]["value"]
-    assert "probe" in intro and "CONTRIBUTING.md#a-device-test-verified" in intro
+    assert "probe" not in intro.lower() and "CONTRIBUTING" not in intro
+    (report,) = [field for field in form["body"] if field.get("id") == "report"]
+    hint = report["attributes"]["description"]
+    assert "probe" in hint and "CONTRIBUTING.md#a-device-test-verified" in hint
     assert {"file", "revision", "ha", "report"} <= form_ids(text.VERIFY_FORM)
     assert {"file", "revision", "ha", "problem", "diagnostics"} <= form_ids(text.PROBLEM_FORM)
 
@@ -1594,12 +1586,10 @@ def test_every_self_check_notice_and_check_step_has_its_texts():
         strings = json.loads(path.read_text())
         assert set(checks.KINDS) <= set(strings["issues"]), path.name
         options = strings["options"]
-        assert set(options["step"]) == {"init", "settings", "check", "results", "report", "report_wrong"}, path.name
-        assert set(options["abort"]) == {"not_loaded", "no_device", "zha_not_loaded", "device_gone", "check_failed", "no_entities"}, path.name
-        # The last pages: the texts of the notice's last pages (a title, the text, its one button).
-        shared = strings["issues"][checks.FINE]["fix_flow"]["step"]
-        assert all(options["step"][step] == shared[step] and set(shared[step]) == {"title", "description", "submit"} for step in ("report", "report_wrong")), path.name
-        assert set(options["error"]) == {"both", "nothing", "no_answer", "no_answer_mains"} and set(options["progress"]) == {"asking"}
+        # The options keep only the settings: the device check is a subentry flow (test_self_check_flow.py checks its texts).
+        assert options == {"step": {"settings": options["step"]["settings"]}}, path.name
+        check = strings["config_subentries"]["device_check"]
+        assert set(check["error"]) == {"both", "nothing"} and set(check["progress"]) == {"asking"}, path.name
 
 
 # Plausible values
