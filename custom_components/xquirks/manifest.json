@@ -1,6 +1,7 @@
 {
   "domain": "xquirks",
   "name": "xquirks",
+  "categories": ["hubs_protocols.wireless_protocols"],
   "codeowners": ["@jabla"],
   "config_flow": true,
   "dependencies": ["http", "zha"],
