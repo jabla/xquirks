@@ -6,7 +6,7 @@ value) or a value its divisor, multiplier or enum class cannot take.
 import pytest
 
 import loader
-from helpers import shipped
+from helpers import definition_of
 from test_take_over import trial
 
 WB_MSW = "wiren_board_wb_msw_zigbee_v_4_official"
@@ -15,7 +15,7 @@ WB_MSW = "wiren_board_wb_msw_zigbee_v_4_official"
 def test_an_enum_narrower_than_a_standard_attribute_fails(registry, tmp_path):
     """The IR action of the WB-MSW looks GenMultistateOutputCluster's present_value (zigpy's uint16_t of
     MultistateOutput) up in its enum IrAction: an enum8 there would raise for a value from 256 on."""
-    definition = shipped(WB_MSW)
+    definition = definition_of(WB_MSW)
     (ir_action,) = [spec for spec in definition["classes"] if spec["name"] == "IrAction"]
     assert ir_action["base"] == {"ref": "t.enum16"}
     assert trial(tmp_path, definition) == {}

@@ -1,8 +1,9 @@
 # Third-party notices
 
-`custom_components/xquirks/definitions.jsonl` and the quirk files in `tests_hacs/fixtures/` carry
-device data from [zigbee-herdsman-converters](https://github.com/Koenkk/zigbee-herdsman-converters)
-(the device library of Zigbee2MQTT): datapoint maps, ranges and labels. Its license:
+`custom_components/xquirks/definitions.jsonl` and the lines the tests copy from it
+(`tests_hacs/fixtures/frozen.jsonl`, `tests_loader/sample.jsonl`) carry device data from
+[zigbee-herdsman-converters](https://github.com/Koenkk/zigbee-herdsman-converters) (the device
+library of Zigbee2MQTT): datapoint maps, ranges and labels. Its license:
 
 ```
 MIT License

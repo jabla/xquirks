@@ -22,6 +22,8 @@ or newer.
 Both files are replaced only after both were read, checked and written to a temporary file beside
 them: an error up to then leaves both as they were, only the two renames at the end could still fail
 apart.
+
+The generator follows both files: the release and the pins of zha, zha-quirks and zigpy.
 """
 
 from __future__ import annotations
