@@ -1,4 +1,4 @@
-"""Helpers of the loader tests: definitions of the shipped file, devices for them, ZHA devices, structural descriptions."""
+"""Helpers of the loader tests: the definitions they use (sample.jsonl), devices for them, ZHA devices, structural descriptions."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ import zigpy.zcl
 from zigpy.zcl.clusters.hvac import Thermostat
 
 import loader
-from conftest import FOLDER
+from conftest import FOLDER, TESTS
 
 STUB_FILE = "/config/custom_zha_quirks/xquirks.py"
 MIXINS = frozenset(loader.BEHAVIOURS.values())
@@ -27,8 +27,10 @@ BEHAVIOUR_METHODS = ("_dp_2_attr_update", "_parse_aqara_attributes", "_handle_at
 TUYA_CLUSTER_ID = 0xEF00
 IEEE = "a4:c1:38:00:00:00:00:01"
 
-# Every line of the shipped definitions.jsonl by its id.
-SHIPPED_LINES = {json.loads(line)["id"]: line for line in (FOLDER / loader.DEFINITIONS_FILE).read_text(encoding="utf-8").splitlines() if line.strip()}
+# The definitions the tests use, by id: lines of definitions.jsonl frozen in sample.jsonl, so a change of the shipped
+# data leaves the tests alone. Copy a line again when a raise of zha-quirks breaks a test through it (a take-over's
+# digests).
+LINES = {json.loads(line)["id"]: line for line in (TESTS / "sample.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()}
 # The sample the tests install: chains on QuirkBuilder and TuyaQuirkBuilder, an alias, three take-overs. The tests take
 # two of them for high-risk definitions nobody verified, whatever the data says now.
 SAMPLE_IDS = (
@@ -39,15 +41,15 @@ SAMPLE_IDS = (
 HIGH_RISK = ("sonoff_zbmicro", "heat_decor_hd_t1000")
 
 
-def shipped(ident: str) -> dict:
-    """The definition of the shipped file with this id, a copy of its own."""
-    return json.loads(SHIPPED_LINES[ident])
+def definition_of(ident: str) -> dict:
+    """The definition with this id, a copy of its own."""
+    return json.loads(LINES[ident])
 
 
 def _sample_line(ident: str) -> str:
     if ident not in HIGH_RISK:
-        return SHIPPED_LINES[ident]
-    definition = {key: value for key, value in shipped(ident).items() if key != "verified"}
+        return LINES[ident]
+    definition = {key: value for key, value in definition_of(ident).items() if key != "verified"}
     definition["risk"] = "high"  # risk and verified are no part of the rev
     return json.dumps(definition, ensure_ascii=False, separators=(",", ":"))
 

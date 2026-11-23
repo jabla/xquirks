@@ -20,7 +20,7 @@ import zhaquirks
 from zha.quirks import DeviceMatch
 
 import loader
-from helpers import BY_ID, SAMPLE_TEXT, STUB_FILE, build_new, label_of, raw_of, shipped
+from helpers import BY_ID, SAMPLE_TEXT, STUB_FILE, build_new, definition_of, label_of, raw_of
 
 SHIPPED = pathlib.Path(zhaquirks.__file__).resolve().parent
 LABELS = {"sonoff_zbminir2": "(SONOFF / ZBMINIR2)", "sonoff_swv": "(SONOFF / SWV)", "shelly_sbdw_103c": "(Shelly / BLU DoorWindow ZB)"}
@@ -390,7 +390,7 @@ def test_the_trial_build_names_a_take_over_zha_would_not_keep(registry, tmp_path
 def test_the_trial_build_checks_each_of_zhas_entries(registry, tmp_path, listed):
     """ZHA registers two entries for the S60ZBTPF (firmware before 0x2003 and from it on): a take-over that lists one
     would step back from the other for the devices of its firmware."""
-    definition = shipped("sonoff_s60zbtpf")
+    definition = definition_of("sonoff_s60zbtpf")
     assert len(definition["zha_digests"]) == 2
     definition["zha_digests"] = definition["zha_digests"][:listed]
     failures = trial(tmp_path, definition)

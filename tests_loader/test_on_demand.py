@@ -17,7 +17,7 @@ from zha.zigbee.device import get_device_automation_triggers
 
 import loader
 from helpers import (
-    BY_ID, EDGE_INPUTS, IEEE, SAMPLE, Describer, alias_layouts, build_zha_device, device_view, label_of, layout_of, make_raw, raw_of, shipped,
+    BY_ID, EDGE_INPUTS, IEEE, SAMPLE, Describer, alias_layouts, build_zha_device, definition_of, device_view, label_of, layout_of, make_raw, raw_of,
 )
 
 
@@ -181,7 +181,7 @@ def test_a_device_that_joins_later_gets_its_quirk(installation, registry):
 
 def test_device_triggers_for_the_early_trigger_cache(installation, registry):
     """Home Assistant reads device triggers from devices it resolves before ZHA starts (the triggers transform)."""
-    definition = shipped("aqara_qbkg17lm")
+    definition = definition_of("aqara_qbkg17lm")
     installation.definitions(json.dumps(definition) + "\n")
     installation.options(high_risk=True)
     installation.setup()
