@@ -1,8 +1,8 @@
 """End to end: the config flow writes the stub, ZHA's custom quirk import (zhaquirks.setup on that folder) loads the
-loader and the definitions from the integration's folder, and a device of a definition gets the same entities, with
-the same unique ids, as with today's quirk file (tests_hacs/fixtures). A Tuya device takes the data query as ZHA's
-service hands it on, a device left alone in the options gets no definition. The import runs in a process of its own:
-it registers every quirk of zhaquirks."""
+loader and the definitions from the integration's folder. A device of a definition keeps every entity of the
+definition's frozen line (tests_hacs/fixtures) with its unique id. A Tuya device takes the data query as ZHA's service
+hands it on, a device left alone in the options gets no definition. The import runs in a process of its own: it
+registers every quirk of zhaquirks."""
 
 from __future__ import annotations
 
@@ -17,26 +17,26 @@ from homeassistant.core import HomeAssistant
 from .conftest import Zha
 from .integration import DOMAIN, FOLDER, ROOT, install
 
-FIXTURES = Path(__file__).resolve().parent / "fixtures"
+FROZEN = Path(__file__).resolve().parent / "fixtures" / "frozen.jsonl"
 DEFINITIONS = [json.loads(line) for line in (FOLDER / "definitions.jsonl").read_text().splitlines()]
 REVISIONS = {definition["id"]: definition["rev"] for definition in DEFINITIONS}
-# The definitions with today's file frozen in fixtures/: (manufacturer, model, device type, input clusters of endpoint 1),
-# and an entity the definition adds itself.
+# The definitions of fixtures/frozen.jsonl: (manufacturer, model, device type, input clusters of endpoint 1) and an
+# entity the definition adds itself.
 DEVICES = {
     "bosch_bsen_w": (("Bosch", "RBSH-WS-ZB-EU", 0x0402, [0x0000, 0x0001, 0x0003, 0x0500, 0xFCAC]), "-1-alarm_on_motion"),
     "aqara_qbcz15lm": (("LUMI", "lumi.plug.sacn03", 0x0051, [0x0000, 0x0003, 0x0004, 0x0005, 0x0006, 0xFCC0]), "-1-power_outage_memory"),
 }
 SCRIPT = """
-import asyncio, json, pathlib, shutil, sys, warnings
+import asyncio, json, pathlib, sys, warnings
 from unittest import mock
 warnings.simplefilter("ignore")
-root, folder, fixtures = (pathlib.Path(arg) for arg in sys.argv[1:4])
+root, folder, frozen = (pathlib.Path(arg) for arg in sys.argv[1:4])
 devices = json.loads(sys.argv[4])
 sys.path.insert(0, str(root))
 import zhaquirks
 import zigpy.device
 import zigpy.types as t
-from zha.quirks import DEVICE_REGISTRY
+from zha.quirks import DEVICE_REGISTRY, DeviceRegistry
 
 
 def joined(manufacturer, model, device_type, clusters):
@@ -75,7 +75,15 @@ async def main():
     out["register"] = loader.register(str(folder / "xquirks.py"), "xquirks")
     for ident, spec in devices.items():
         device = zha_device(DEVICE_REGISTRY.resolve(joined(*spec)))
-        out[ident] = {"new": [device.quirk_class, entities(device)]}
+        out[ident] = {"shipped": [device.quirk_class, entities(device)]}
+    # The frozen line of each, built by the same loader into a registry of its own.
+    for line in frozen.read_text().splitlines():
+        definition = json.loads(line)
+        registry = DeviceRegistry()
+        for entry in loader.build(definition, str(folder / "xquirks.py"), "xquirks", options):
+            registry.register(entry)
+        device = zha_device(registry.resolve(joined(*devices[definition["id"]])))
+        out[definition["id"]]["frozen"] = [device.quirk_class, entities(device)]
     # The first low-risk Tuya definition that applies: the data query as ZHA's service hands it on.
     for line in pathlib.Path(loader.__file__).with_name("definitions.jsonl").read_text().splitlines():
         definition = json.loads(line)
@@ -94,15 +102,6 @@ async def main():
     from custom_components.xquirks import diagnostics
 
     out["diagnostics"] = diagnostics._loader()
-    # Today's files in a folder of their own, as quirks of the user's: the loader steps back for them.
-    old = folder.parent / "today"
-    old.mkdir()
-    for ident in devices:
-        shutil.copy(fixtures / f"z2m_{ident}.py.txt", old / f"z2m_{ident}.py")
-    zhaquirks.setup(str(old))
-    for ident, spec in devices.items():
-        device = zha_device(DEVICE_REGISTRY.resolve(joined(*spec)))
-        out[ident]["old"] = [device.quirk_class, entities(device)]
     print(json.dumps(out))
 
 
@@ -116,7 +115,7 @@ async def test_setup_to_zha_entities(hass: HomeAssistant, zha: Zha, quirks_dir: 
     await hass.async_block_till_done()
     await install.async_set_options(hass, quirks_dir, excluded=["AA:BB:CC:DD:EE:FF:00:11"], high_risk=True)
     devices = {ident: spec for ident, (spec, _own) in DEVICES.items()}
-    args = [sys.executable, "-I", "-c", SCRIPT, str(ROOT), str(quirks_dir), str(FIXTURES), json.dumps(devices)]
+    args = [sys.executable, "-I", "-c", SCRIPT, str(ROOT), str(quirks_dir), str(FROZEN), json.dumps(devices)]
     run = subprocess.run(args, capture_output=True, text=True, timeout=300, check=False)
     assert run.returncode == 0, run.stderr[-3000:]
     out = json.loads(run.stdout.splitlines()[-1])
@@ -124,10 +123,12 @@ async def test_setup_to_zha_entities(hass: HomeAssistant, zha: Zha, quirks_dir: 
     # The loader reads the options as the integration wrote them.
     assert out["options"] == [["aa:bb:cc:dd:ee:ff:00:11"], True]
     assert out["register"] == [len(DEFINITIONS), 0]
+    frozen = {definition["id"]: definition["rev"] for definition in map(json.loads, FROZEN.read_text().splitlines())}
     for ident, (_spec, own) in DEVICES.items():
-        (new_quirk, new_ids), (old_quirk, old_ids) = out[ident]["new"], out[ident]["old"]
-        assert new_quirk == f"xquirks:xquirks:{ident} {REVISIONS[ident]}" and old_quirk.startswith(f"z2m_{ident}:"), (new_quirk, old_quirk)
-        assert new_ids == old_ids and f"00:11:22:33:44:55:66:77{own}" in new_ids
+        (shipped_quirk, shipped_ids), (frozen_quirk, frozen_ids) = out[ident]["shipped"], out[ident]["frozen"]
+        assert (shipped_quirk, frozen_quirk) == (f"xquirks:xquirks:{ident} {REVISIONS.get(ident)}", f"xquirks:xquirks:{ident} {frozen[ident]}")
+        # A data change may add entities, never drop or rename one of the frozen line's.
+        assert f"00:11:22:33:44:55:66:77{own}" in frozen_ids and set(frozen_ids) <= set(shipped_ids), sorted(set(frozen_ids) - set(shipped_ids))
     # The command without payload (frame control 0x01: a cluster command from client to server, then the sequence number).
     ident, cluster, endpoint, frame = out["tuya"]
     assert REVISIONS[ident] and (cluster, endpoint, frame[:2], frame[4:]) == (0xEF00, 1, "01", "03")

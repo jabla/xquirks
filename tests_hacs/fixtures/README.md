@@ -1,5 +1,5 @@
-# Frozen content
+# Frozen definitions
 
-- `z2m_bosch_bsen_w.py.txt`, `z2m_aqara_qbcz15lm.py.txt`: quirk files of the last content state, the ones their
-  definitions in `definitions.jsonl` were lifted from. `test_end_to_end.py` compares the unique ids of each device's
-  entities with the definition's. Replace a file when its definition gets a new revision, or pick another definition.
+- `frozen.jsonl`: two lines of `custom_components/xquirks/definitions.jsonl`, the entities `test_end_to_end.py` expects
+  of their devices. Copy a line again when a data change drops or renames one of its entities on purpose. Pick another
+  definition with an entity of its own when one is gone.
