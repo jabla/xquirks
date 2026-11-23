@@ -1,6 +1,6 @@
-// The matching rules of the integration (custom_components/xquirks/matching.py) for the quirk
-// finder page. Kept free of the DOM so that tests can run it in node and compare it with
-// matching.py on the same inputs.
+// Which definitions a device gets, as ZHA matches a registry entry to a device (zha.quirks DeviceMatch) and the
+// loader's filter leaves a name to another device (claimed_elsewhere), and the devices of a diagnostics file or of
+// the template's output. Kept free of the DOM so that tests run it in node.
 
 // The template the page shows: in Developer tools > Template it lists every ZHA device as
 // "manufacturer||model".
@@ -66,41 +66,39 @@ export function devicesFromJson(value) {
   return [...found.values()].sort(compareDevices);
 }
 
-// A name compared ignoring case, as a file names its device (CONTENT.md, friendly_name).
+// A name compared ignoring case, as ZHA shows a device a definition renames (friendly_name).
 const folded = (pair) => key(pair.map((part) => part.toLowerCase()));
 
-const isPair = (value) => Array.isArray(value) && value.length === 2 && value.every((part) => typeof part === "string" && part);
+const byId = (definitions) => [...definitions].sort((a, b) => compareStrings(a.id, b.id));
 
-// hints(): per device that matches() gives no entry, the entries with a file that may show the device under that name
-// (its quirk renamed it): the entry's friendly_name or its vendor and model, ignoring case. The device registry, ZHA's
-// integration diagnostics and the template show such a name, the files match zigpy's. Sorted like matches(). Never a
-// match: the device's own diagnostics tell.
-export function hints(manifest, devices) {
-  const matched = new Set(matches(manifest, devices).map(({ device }) => key(device)));
-  const rest = [...devices].filter((device) => !matched.has(key(device))).sort(compareDevices);
+// Whether a name (manufacturer, model) catches the device: null stands for any.
+export const catches = ([manufacturer, model], device) => (manufacturer === null || manufacturer === device[0]) && (model === null || model === device[1]);
+
+// matches(): per definition (by id) and device, the definitions with a name that catches the device, unless the
+// definition leaves that exact name to another device (claimed_elsewhere).
+export function matches(definitions, devices) {
+  const sorted = [...devices].sort(compareDevices);
   const result = [];
-  for (const slug of Object.keys(manifest).sort(compareStrings)) {
-    const entry = manifest[slug];
-    if (!entry.file) continue;
-    const names = new Set([entry.friendly_name, [entry.vendor, entry.model]].filter(isPair).map(folded));
-    for (const device of rest) if (names.has(folded(device))) result.push({ device, slug, entry });
+  for (const definition of byId(definitions)) {
+    const claimed = new Set(definition.claimed.map(key));
+    for (const device of sorted) {
+      if (definition.names.some((name) => catches(name, device)) && !claimed.has(key(device))) result.push({ device, definition });
+    }
   }
   return result;
 }
 
-// matches(): per manifest entry (by slug) and device, sorted like matching.py. A fingerprint with
-// manufacturer null matches any manufacturer except the names in the entry's claimed_elsewhere.
-export function matches(manifest, devices) {
-  const sorted = [...devices].sort(compareDevices);
+// hints(): per device that matches() gives no definition, the definitions that show their device under that name
+// (friendly_name), ignoring case. The device registry, ZHA's integration diagnostics and the template show that name,
+// the definitions match the device's own. Sorted like matches(). Never a match: the device's own diagnostics tell.
+export function hints(definitions, devices) {
+  const matched = new Set(matches(definitions, devices).map(({ device }) => key(device)));
+  const rest = [...devices].filter((device) => !matched.has(key(device))).sort(compareDevices);
   const result = [];
-  for (const slug of Object.keys(manifest).sort(compareStrings)) {
-    const entry = manifest[slug];
-    const claimed = new Set((entry.claimed_elsewhere || []).map(key));
-    for (const device of sorted) {
-      // One result per device, also when it matches an exact and a model-only fingerprint.
-      const fits = entry.fingerprints.some(([manufacturer, model]) => device[1] === model && (manufacturer === null || manufacturer === device[0]));
-      if (fits && !claimed.has(key(device))) result.push({ device, slug, entry });
-    }
+  for (const definition of byId(definitions)) {
+    if (!definition.friendly) continue;
+    const name = folded(definition.friendly);
+    for (const device of rest) if (folded(device) === name) result.push({ device, definition });
   }
   return result;
 }

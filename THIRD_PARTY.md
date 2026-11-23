@@ -1,9 +1,8 @@
 # Third-party notices
 
-The quirk files on the `content` branch carry device data from
-[zigbee-herdsman-converters](https://github.com/Koenkk/zigbee-herdsman-converters) (the device
-library of Zigbee2MQTT): datapoint maps, ranges and labels. On `main`, only the test fixtures in
-`tests_hacs/fixtures/` (copies of such files and of manifest entries) do. Its license:
+`custom_components/xquirks/definitions.jsonl` and the quirk files in `tests_hacs/fixtures/` carry
+device data from [zigbee-herdsman-converters](https://github.com/Koenkk/zigbee-herdsman-converters)
+(the device library of Zigbee2MQTT): datapoint maps, ranges and labels. Its license:
 
 ```
 MIT License
@@ -28,6 +27,3 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
-
-The integration and the finder show device pictures from zigbee2mqtt.io. They fetch them when
-needed. This repository holds none.

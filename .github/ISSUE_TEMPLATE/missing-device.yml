@@ -1,12 +1,12 @@
-name: Device without a file
-description: ZHA does not support your device fully. This repo has no file for it.
+name: Device without a definition
+description: ZHA does not support your device fully. xquirks has no definition for it.
 title: "Missing: <vendor> <model>"
 labels: [device]
 body:
   - type: markdown
     attributes:
       value: |
-        Check the [xquirks finder](https://jabla.github.io/xquirks/) first: your device may already have a file.
+        Check the [xquirks finder](https://jabla.github.io/xquirks/) first: your device may already have a definition.
 
         Some devices are left out for now:
 

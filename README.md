@@ -2,9 +2,9 @@
 
 # xquirks
 
-Extra quirks for ZHA (Home Assistant's Zigbee integration) for devices that Zigbee2MQTT supports
-and ZHA does not yet or not with all their settings and sensors. They are generated from the
-Zigbee2MQTT device library
+Extra quirks for ZHA (Home Assistant's Zigbee integration) for devices that Zigbee2MQTT supports and
+ZHA does not yet or not with all their settings and sensors. They ship as device definitions: quirks
+stored as data, generated from the Zigbee2MQTT device library
 ([zigbee-herdsman-converters](https://github.com/Koenkk/zigbee-herdsman-converters)). The aim is to
 get them into [zha-device-handlers](https://github.com/zigpy/zha-device-handlers), not to replace it.
 
@@ -12,149 +12,149 @@ get them into [zha-device-handlers](https://github.com/zigpy/zha-device-handlers
 > **xquirks is in beta.** Unexpected issues may occur. Please [report](#reporting-problems) them if
 > nobody has reported them yet.
 
-**Is your device here?** Install the integration [from the Marketplace](#install-from-the-marketplace),
-or look it up in the [xquirks finder](https://jabla.github.io/xquirks/).
+**Is your device here?** Look it up in the [xquirks finder](https://jabla.github.io/xquirks/). It
+shows the definitions of the latest release.
 
-## What is here
+## How it works
 
-- `custom_components/xquirks/`: the integration, which installs the quirk files for your ZHA
-  devices once you confirm.
-- `site/`: the [quirk finder](https://jabla.github.io/xquirks/), which matches your devices in your
-  browser.
-- `tools/probe.py`: the device test from a shell. The integration's **Check a device** does the same
-  inside Home Assistant ([CONTRIBUTING.md](CONTRIBUTING.md)): its report makes a file "verified".
-- The `content` branch: the quirk files with their `manifest.json`. Each `content-<n>` tag is one
-  published state ([CONTENT.md](CONTENT.md)).
+The definitions ship inside the integration. Its setup writes two files into ZHA's custom quirks
+folder: the start file `xquirks.py` and the options file `xquirks_options.json`. Each time ZHA
+starts (with Home Assistant or when you reload it), the start file loads the definitions. ZHA
+applies them like any custom quirk.
 
-Each quirk file names its status in its docstring:
+- A device that a quirk of yours or one of ZHA's own quirks covers keeps that quirk, apart from a
+  few take-overs ([Upstream first](#upstream-first)).
+- xquirks builds each definition with the quirk builder that ZHA's own quirks use. A definition is
+  data and cannot bring code of its own.
+- A definition that fails to build is skipped with a line in the log. ZHA loads the others.
+- After each start of ZHA, a notice in Settings > System > Repairs lists the devices whose definition
+  changed or waits for **Use high-risk definitions**. **OK** closes it until the next change.
+- A Tuya device on a new or changed definition gets a data query: such devices send their values by
+  themselves only when they join. A battery device may miss the query and show its values when it
+  next reports.
+- When a device leaves its definition, the entities only that definition added stay as unavailable.
+  Delete them on the device's page.
 
-- generated: built from the Zigbee2MQTT definition, not yet checked on a device
-- verified: checked on the device (with the integration's device check or the probe)
-- upstream: zha-device-handlers covers the device fully, the file is no longer shipped
-
-A file that is not verified also names its risk: low (readings and simple controls), medium (number
-settings the device may limit differently) or high (covers, thermostats, files that replace ZHA's own
-quirk, files with a known weak spot). The integration offers high-risk files only when you turn them
-on in its options.
+Repairs also report problems with the setup: no custom quirks folder, quirks turned off in ZHA, a
+missing or outdated start file or a broken options file.
 
 ## Install from the Marketplace
 
-Needs Home Assistant with ZHA, at least the release named in [`hacs.json`](hacs.json).
+Needs Home Assistant with ZHA, at least the release named in [`hacs.json`](hacs.json). The
+Marketplace is the successor of HACS, built into Home Assistant.
 
-1. If ZHA has no custom quirks folder yet: create `/config/custom_zha_quirks` (File editor, Samba
-   or SSH app), add these lines to `configuration.yaml` and restart Home Assistant:
+1. If ZHA has no custom quirks folder yet: create `/config/custom_zha_quirks` (File editor, Samba or
+   SSH app), add these lines to `configuration.yaml` and restart Home Assistant:
    ```yaml
    zha:
      custom_quirks_path: /config/custom_zha_quirks/
    ```
-2. Settings > Marketplace > Add from link: enter `https://github.com/jabla/xquirks` and select
-   Add. The first time, it asks you to connect GitHub.
-3. Search for "xquirks", open it and select Install. Its setup opens on its own or add it under
-   Settings > Devices & services > Add integration > "xquirks".
+2. Settings > Marketplace > Add from link: enter `https://github.com/jabla/xquirks` and select Add.
+   The first time, it asks you to connect GitHub.
+3. Search for "xquirks", open it and select Install. Its setup opens on its own. Otherwise add it
+   under Settings > Devices & services > Add integration > "xquirks".
+4. Setup offers to reload ZHA right away. Otherwise ZHA loads the definitions at the next restart of
+   Home Assistant.
 
-The Marketplace looks for a new xquirks release every two days. An update asks for a restart of
-Home Assistant in Settings > System > Repairs. After the restart, reload the Home Assistant page in
-your browser so that the dialogs of xquirks show their texts.
+## Options
 
-## How the integration works
+Settings > Devices & services > xquirks > Configure:
 
-Every 6 hours and whenever you press **Check for quirk updates**, it fetches the newest state of the
-quirk files that fits this xquirks release and your Home Assistant release. It matches the files to
-your ZHA devices by manufacturer and model.
+- **Devices xquirks leaves alone**: these devices run ZHA's own quirk, a quirk of yours or none instead.
+- **Use high-risk definitions**: see [Risk levels](#risk-levels).
+- **Reload ZHA now**: the changes apply right away. Otherwise they apply at the next restart of Home
+  Assistant.
 
-It writes nothing on its own: every install, update and removal goes into one change list in
-Settings > System > Repairs. **Apply all** makes all changes at once, then reloads ZHA, so your
-Zigbee devices are unavailable for a few seconds. If a step fails, it puts back what it changed.
-**Not now** puts the list aside (Repairs > three-dot menu > Show ignored repairs).
+## Risk levels
 
-After ZHA reloads, the integration asks each Tuya device that got a new or updated file for its
-current values: these devices send them by themselves only when they join. A battery device may miss
-the request and show its settings only when it next reports.
+Each definition has a risk level:
 
-For a day after that, it watches what these devices send: values outside a plausible range, values
-that never come, Tuya datapoints the file does not show. It only listens, it asks the devices nothing.
-Then one notice per file says if its values look off. A file that is not verified on a device yet also
-gets a notice when its values look fine or did not come at all. After a firmware update, it watches
-that device for another day unless its file is verified. A notice leaves out devices whose variant
-enough people confirmed. Apart from the search for confirmations (below), nothing leaves your Home
-Assistant by itself.
+- low: readings and simple controls
+- medium: number settings the device may limit differently, take-overs of ZHA's own quirk
+- high: covers, thermostats and definitions with a known weak spot
 
-**Check a device** under Settings > Devices & services > xquirks (a button at the top, also in the
-three-dot menu) asks one device for its current values. You mark which match the device. **Report**
-on the last dialog opens a form on GitHub in a new tab, filled in with the report, which names no
-address and none of the names you gave: "Device test", or "Wrong or missing value" when you marked a
-value as wrong. A notice's **Check the device now** opens the same check. When a test of the same
-device and firmware is on GitHub already, the notice's check links that issue for a thumbs-up
-instead. That is how a file becomes verified.
+A high-risk definition that is not verified on a device loads only with **Use high-risk
+definitions**. The finder shows the risk of each definition.
 
-To keep a device out, add it under Settings > Devices & services > xquirks > Configure. A file
-another device needs is installed anyway. The integration never writes or deletes a file it did not
-write, a file you changed or a symlink. Its notices say what happened and what to do. "Quirk file
-refused" should never appear: please report it with the integration's diagnostics.
+## Updates
 
-## Uninstall
+New and corrected definitions come with updates of the integration. The Marketplace looks for a new
+release every two days. An update asks for a restart of Home Assistant in Settings > System >
+Repairs. ZHA loads the new definitions at that restart. Reload the Home Assistant page in your
+browser afterwards so that the dialogs of xquirks show their new texts.
 
-Removing only the integration leaves the installed files in place. To remove them too:
-
-1. Settings > Devices & services > xquirks > Configure: add all your ZHA devices under **Devices**.
-2. Apply the change list in Settings > System > Repairs. It removes the files and reloads ZHA.
-   Where xquirks replaced ZHA's own quirk, that quirk takes the device back. Files you changed
-   yourself stay: delete them from the custom quirks folder.
-3. Delete the xquirks entry: Settings > Devices & services > xquirks > three-dot menu > Delete.
-4. Uninstall xquirks in the Marketplace, then restart Home Assistant when Repairs asks for it.
-
-Entities only an xquirks file added stay as unavailable. Delete them on the device's page.
-
-## What it fetches
-
-- `api.github.com`: the list of `content-<n>` tags, at each check. And GitHub's issue search for the
-  open "Device test" issues of a file, when its day of watching ends and when you open the notice that
-  follows. It names only the file's key (8 hex digits) and carries no token.
-- `raw.githubusercontent.com`: the small files of a tag, plus a quirk file the change list would
-  write, always at the tag's commit.
-- `www.zigbee2mqtt.io`: each device picture once. Your browser contacts it only when you click a
-  picture.
-
-A report reaches GitHub only when you submit a prefilled form yourself.
-
-## What you can check
-
-- The history is public: every state of the files is a commit on the `content` branch with a
-  `content-<n>` tag. Tags never move. A newer state gets the next number.
-- The guard runs at your end: before it offers or writes a file, the integration checks its sha256
-  against the manifest and every statement against the fixed code that ships with the integration
-  release. A new state can change which devices a quirk covers and its values, never the code that
-  runs.
-
-## Install by hand
-
-1. Find the files for your devices with the [quirk finder](https://jabla.github.io/xquirks/):
-   drop the ZHA diagnostics on it (Settings > Devices & services > Zigbee Home Automation >
-   Download diagnostics) or paste the output of its template. The page reads the file in your
-   browser and uploads nothing. Each matching file links to GitHub for the download.
-2. Copy only those files into your custom quirks folder (step 1 above): ZHA loads every file in it.
-3. Restart Home Assistant.
-
-The finder names the Home Assistant release the files need. To remove a file, delete it and restart
-Home Assistant.
-
-## Upstream first
-
-A file from this repo steps back as soon as your ZHA version ships a quirk for the device, even if
-the file stays in your folder. One exception: where ZHA's quirk lacks settings or sensors the file
-has, the integration offers the file as a change you confirm. Such a file keeps everything ZHA's
-quirk shows under the same entity IDs and adds the rest. The integration removes it once ZHA's
-quirk catches up.
-
-Where an open zha-device-handlers pull request adds your device, testing it there helps most. The
-finder and the change list link it. ZHA logs "Loaded custom quirks. Please contribute them to
-zha-device-handlers" for every custom quirk. For files from this repo, report problems here instead
-and do not submit the files upstream yourself.
+Betas are GitHub pre-releases. The Marketplace offers them once you select **Include pre-releases**
+in the menu of xquirks. To go back, select **Install another version** in the same menu.
 
 ## Reporting problems
 
-Reports go through this repository's issue forms. [CONTRIBUTING.md](CONTRIBUTING.md) says which
-one fits and what helps most.
+Reports go through this repository's issue forms. [CONTRIBUTING.md](CONTRIBUTING.md) says which one
+fits and what helps most.
+
+### From the device's page
+
+The page of each device on an xquirks definition has two buttons under Diagnostic: **Report a
+problem (xquirks)** and, until the revision of its definition is verified, **Confirm it works
+(xquirks)**. A press puts a notification under Notifications in the sidebar. If the definition has
+open issues, it links them: a thumbs-up there helps as much as a new issue. Otherwise it links the
+GitHub form, filled in with the definition, its revision, the versions and the device's values in
+Home Assistant, without IEEE address or names. When GitHub does not answer, it links both.
+Submitting a form or giving a thumbs-up needs a GitHub account.
+
+I mark a revision as verified once two GitHub accounts confirmed that it works (the author of the "It
+works" issue plus a thumbs-up) and no wrong-value issue is open for it. My own devices count like
+anyone's. A high-risk definition also needs a test by hand. The release with the mark drops
+**Confirm it works (xquirks)** from its devices.
+
+### A device gets no definition
+
+A definition steps back for a device when:
+
+- a quirk of yours or one of ZHA's own quirks covers it
+- you picked the device under **Devices xquirks leaves alone**
+- the definition is high risk and high-risk definitions are off
+- the device lacks an endpoint or cluster the definition needs
+- Zigbee2MQTT gives the same name to another device
+
+The log then has a line such as `xquirks: <definition> steps back for <IEEE address> (<reason>)`. To
+see it, select **Enable debug logging** in the menu of xquirks (Settings > Devices & services >
+xquirks) and reload ZHA. **Disable debug logging** then downloads the log. When the reason names an
+endpoint, use the "Device layout" form.
+
+## Privacy
+
+xquirks asks GitHub only at a press of a button on a device's page, with the definition's id and
+revision. GitHub also sees your IP address, as with any website you visit. The definitions come with
+the integration, which the Marketplace downloads from GitHub. A report reaches GitHub only when you
+submit a filled-in form or give a thumbs-up yourself.
+
+## Uninstall
+
+1. Delete the xquirks entry: Settings > Devices & services > xquirks > three-dot menu > Delete. This
+   removes the start file and the options file.
+2. Uninstall xquirks in the Marketplace.
+3. Restart Home Assistant. ZHA then starts without the definitions. Where a definition took a device
+   over from ZHA's own quirk, that quirk takes it back.
+
+## Install by hand
+
+1. Unpack `xquirks.zip` from the [latest release](https://github.com/jabla/xquirks/releases/latest)
+   into `/config/custom_components/xquirks/`.
+2. Restart Home Assistant, then add xquirks under Settings > Devices & services > Add integration.
+
+For an update, replace the folder with the new release and restart Home Assistant.
+
+## Upstream first
+
+A definition steps back as soon as your ZHA version ships a quirk for the device. One exception:
+where ZHA's quirk lacks settings or sensors that Zigbee2MQTT knows, a definition may take the device
+over on purpose. Such a take-over keeps everything ZHA's quirk shows under the same entity IDs and
+adds the rest. When a ZHA update changes that quirk, the device goes back to it until a release of
+xquirks catches up.
+
+Where an open zha-device-handlers pull request adds your device, testing it there helps most. ZHA
+logs "Loaded custom quirks. Please contribute them to zha-device-handlers" for every custom quirk.
+For xquirks definitions, report problems here instead and do not submit them upstream yourself.
 
 ## License
 

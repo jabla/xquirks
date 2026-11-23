@@ -6,6 +6,8 @@ import re
 import struct
 from pathlib import Path
 
+import yaml
+
 from .integration import FOLDER
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,3 +43,10 @@ def test_no_workflow_pipes_into_grep_q():
     SIGPIPE, which pipefail (the default shell of a run step) makes the result of the pipeline."""
     for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
         assert not re.search(r"\|\s*grep\s+-\w*q", path.read_text()), path.name
+
+
+def test_ci_runs_every_folder_of_tests():
+    """The job Integration tests runs each folder with a pytest.ini of its own."""
+    folders = {path.parent.name for path in ROOT.glob("*/pytest.ini")}
+    runs = [step.get("run") for step in yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())["jobs"]["tests"]["steps"]]
+    assert {"tests_hacs", "tests_loader"} <= folders and all(f"python -m pytest {folder} -q" in runs for folder in folders)

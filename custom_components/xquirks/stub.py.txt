@@ -1,0 +1,17 @@
+"""xquirks: loads the xquirks definitions into ZHA (written by the xquirks integration, do not edit)."""
+
+import importlib.util
+import logging
+import pathlib
+import sys
+
+try:
+    # Only the location of the integration: its __init__ (Home Assistant code) does not run here.
+    _folder = pathlib.Path(next(iter(importlib.util.find_spec("custom_components.xquirks").submodule_search_locations)))
+    _spec = importlib.util.spec_from_file_location(f"{__name__}_loader", _folder / "loader.py")
+    _loader = importlib.util.module_from_spec(_spec)
+    sys.modules[_spec.name] = _loader
+    _spec.loader.exec_module(_loader)
+    _loader.register(__file__, __name__)
+except Exception:  # noqa: BLE001 - ZHA loads its other quirks whatever fails here
+    logging.getLogger(__name__).exception("xquirks: definitions not loaded")

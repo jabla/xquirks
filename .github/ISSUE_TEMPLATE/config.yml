@@ -2,4 +2,4 @@ blank_issues_enabled: false
 contact_links:
   - name: A quirk that ships with ZHA
     url: https://github.com/zigpy/zha-device-handlers/issues
-    about: Missing or wrong values in a quirk that ships with ZHA belong to zha-device-handlers.
+    about: Wrong values in a quirk that ships with ZHA belong to zha-device-handlers.

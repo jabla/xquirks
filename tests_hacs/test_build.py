@@ -1,18 +1,21 @@
-"""tools/build_integration.py (the release zip), the repository's metadata, the parsers of a content
-tag's metadata on synthetic content and frozen real manifest entries."""
+"""tools/build_integration.py (the release zip) and the repository's metadata and translations."""
 
 from __future__ import annotations
 
 import importlib.util
 import json
 import re
+import subprocess
+import sys
+import types
 import zipfile
 from pathlib import Path
 
 import pytest
+from homeassistant import loader
+from homeassistant.core import HomeAssistant
 
-from .conftest import content_json, tag_files, write_repo
-from .integration import const, content, guard
+from .integration import const
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -22,18 +25,6 @@ def load_builder():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
-
-
-def test_content_metadata_parses():
-    """content.json names the guard a content tag was built for, hacs.json the Home Assistant release
-    its files need (the integration's own hacs.json has the same key)."""
-    assert content.parse_guard(content_json().decode()) == guard.Guard.load().id
-    assert content.parse_guard(content_json(None).decode()) is None
-    assert content.parse_guard('{"guard": "not a guard id"}') is None
-    assert content.parse_homeassistant((ROOT / "hacs.json").read_text())
-    assert content.parse_homeassistant('{"name": "xquirks"}') is None
-    with pytest.raises(content.BadContent):
-        content.parse_homeassistant('{"homeassistant": 2026}')
 
 
 def release(text: str) -> tuple[int, int, int]:
@@ -56,65 +47,8 @@ def test_the_minimum_is_no_older_than_the_release_ci_tests():
     assert release("2026.9.0") < release("2026.10.0") and "2026.9.0" > "2026.10.0"
 
 
-def test_withdrawn_list_is_read():
-    assert content.parse_withdrawn("") == {}
-    text = '[[withdrawn]]\nfile = "z2m_a_b.py"\nrevision = "1a2b3c4d"\nreason = "Wrong unit."\n'
-    assert content.parse_withdrawn(text) == {("z2m_a_b.py", "1a2b3c4d"): "Wrong unit."}
-    with pytest.raises(content.BadContent):
-        content.parse_withdrawn('[[withdrawn]]\nfile = "../evil.py"\nrevision = "1a2b3c4d"\nreason = "x"\n')
-    # Nesting deeper than the parser's recursion is a list that cannot be read, like any other.
-    for nested in ("[" * 10000 + "]" * 10000, "{a = " * 10000 + "1" + "}" * 10000):
-        with pytest.raises(content.BadContent):
-            content.parse_withdrawn(f"withdrawn = {nested}\n")
-
-
-def test_fetched_state_needs_hashes_and_revisions(tmp_path: Path):
-    files = tag_files(write_repo(tmp_path))
-    sources = {"zigbee-herdsman-converters": "26.1.0", "zha-device-handlers": "1d6598c"}
-    manifest = {slug: {**entry, "sources": sources} for slug, entry in json.loads(files["manifest.json"]).items()}
-    state = content.from_manifest(manifest, tag="content-3", content=3, homeassistant="2026.10.0", withdrawn={})
-    shipped = [e for e in manifest.values() if e.get("file")]
-    assert len(shipped) >= 2
-    assert state.shas == {Path(e["file"]).name: e["sha256"] for e in shipped}
-    assert state.revisions == {Path(e["file"]).name: e["revision"] for e in shipped}
-    assert state.paths == {Path(e["file"]).name: e["file"] for e in shipped}
-    assert state.sources == sources
-    # Every shipped file has the hash the manifest states.
-    for name, path in state.paths.items():
-        assert content.sha256(files[path]) == state.shas[name], name
-    slug = next(s for s, e in manifest.items() if e.get("file"))
-    broken = {**manifest, slug: {**manifest[slug], "sha256": "not a hash"}}
-    with pytest.raises(content.BadContent):
-        content.from_manifest(broken, tag="content-3", content=3, homeassistant=None, withdrawn={})
-
-
-# Real manifest entries, one of each kind (fixtures/README.md).
-REAL_ENTRIES = json.loads((Path(__file__).resolve().parent / "fixtures" / "manifest-kinds.json").read_text())
-
-
-def test_real_manifest_entries_are_taken():
-    """Frozen real entries: a zcl file with endpoints, a Tuya file that leaves a name to another file,
-    alias files by target and by alias groups, a file that takes a device over, a refused take-over,
-    a device not built, a file with open upstream pull requests, a new file whose picture is not
-    pinned yet. A content state takes them; the guard reads each file's targets from its entry, the
-    integration its risk."""
-    keys = {key for entry in REAL_ENTRIES.values() for key in entry}
-    assert {"endpoints", "claimed_elsewhere", "target", "aliases", "over_zha", "swap", "not_built", "upstream_open_prs", "picture_sha256", "sources", "risk", "risk_why"} <= keys
-    assert any(not entry.get("file") and entry.get("swap") for entry in REAL_ENTRIES.values())
-    assert {type(entry.get("picture_sha256")) for entry in REAL_ENTRIES.values()} == {str, type(None)}
-    state = content.from_manifest(REAL_ENTRIES, tag="content-3", content=3, homeassistant="2026.11.0", withdrawn={})
-    files = {Path(entry["file"]).name: entry for entry in REAL_ENTRIES.values() if entry.get("file")}
-    assert len(files) == 7
-    assert state.shas == {name: entry["sha256"] for name, entry in files.items()}
-    assert state.revisions == {name: entry["revision"] for name, entry in files.items()}
-    assert state.sources == next(iter(REAL_ENTRIES.values()))["sources"]
-    for name, entry in files.items():
-        assert guard.Targets.of(entry) is not None, name
-        # Every file states its risk with reasons this release knows.
-        assert entry["risk"] == content.risk(entry) and tuple(entry["risk_why"]) == content.risk_why(entry), name
-
-
 def test_release_zip_has_the_integration_at_its_root(tmp_path: Path):
+    """The loader, the definitions and the stub's text ship in the zip."""
     builder = load_builder()
     folder = builder.integration_folder()
     path = builder.write_zip(folder, tmp_path / "dist", "1.2.3")
@@ -122,16 +56,24 @@ def test_release_zip_has_the_integration_at_its_root(tmp_path: Path):
     with zipfile.ZipFile(path) as archive:
         names = set(archive.namelist())
         manifest = json.loads(archive.read("manifest.json"))
-        shipped = guard.identity(archive.read("guard.py"), archive.read(guard.FIXED_CODE))
+        assert archive.read("definitions.jsonl") == (folder / "definitions.jsonl").read_bytes()
     assert manifest["version"] == "1.2.3"
-    assert {"__init__.py", "manifest.json", "translations/en.json", "content.py", "guard.py", guard.FIXED_CODE} <= names
-    # The guard of the zip is the one this integration ships: content tags name it in content.json.
-    assert shipped == guard.Guard.load().id
+    assert {"__init__.py", "manifest.json", "translations/en.json", "loader.py", "definitions.jsonl", "stub.py.txt", "install.py", "THIRD_PARTY.md"} <= names
     assert not any("__pycache__" in name for name in names)
-    # Code only: the quirk files come from the content-<n> tags.
-    assert not any(name.startswith(("bundle/", "quirks/", "z2m_")) for name in names)
+    assert not any(name.startswith(("quirks/", "z2m_")) for name in names)
+    assert not any(part.startswith("test") for name in names for part in name.split("/"))
     # The source tree keeps its version.
     assert json.loads((folder / "manifest.json").read_text())["version"] == "0.0.0"
+
+
+def test_the_zip_carries_the_license_of_the_definitions(tmp_path: Path):
+    """definitions.jsonl is derived from zigbee-herdsman-converters, whose MIT license asks for its copyright and
+    permission notice in every copy: the zip carries the text THIRD_PARTY.md has."""
+    builder = load_builder()
+    with zipfile.ZipFile(builder.write_zip(builder.integration_folder(), tmp_path, None)) as archive:
+        notice = archive.read("THIRD_PARTY.md").decode()
+    license_text = re.search(r"^```\n(MIT License\n.*?)^```$", (ROOT / "THIRD_PARTY.md").read_text(), re.DOTALL | re.MULTILINE)[1]
+    assert "Copyright (c) 2018 Koen Kanters" in license_text and "`definitions.jsonl`" in notice and f"```\n{license_text}```" in notice
 
 
 def test_hacs_and_integration_metadata():
@@ -144,7 +86,7 @@ def test_hacs_and_integration_metadata():
     assert hacs["zip_release"] is True
     for key in ("domain", "name", "version", "documentation", "issue_tracker", "codeowners", "iot_class", "config_flow"):
         assert manifest[key], key
-    assert manifest["requirements"] == []
+    assert manifest["requirements"] == [] and manifest["dependencies"] == ["zha"]
     # strings.json and translations/en.json are the same file, byte for byte (read_text would hide line endings).
     assert (folder / "strings.json").read_bytes() == (folder / "translations" / "en.json").read_bytes()
 
@@ -160,17 +102,13 @@ def _strings(tree: dict, prefix: str = "") -> dict[str, str]:
 
 
 def test_every_issue_and_option_the_integration_shows_has_its_texts():
-    """The translation keys the code names: every notice kind the manager creates and every option of
-    the options step, in each language."""
+    """In each language: the issues of const.py, the options' fields and the choices of the setup."""
     folder = load_builder().integration_folder()
-    code = "\n".join(path.read_text() for path in folder.glob("*.py"))
-    kinds = set(re.findall(r'\("(\w+)", (?:True|False), ', code)) | set(re.findall(r'^(?:[A-Z_]+) = "(\w+)"$', (folder / "manager.py").read_text(), re.M)) & {"missing_quirks_path", "folder_unreadable", "no_content_state"}
-    assert {"held_back", "blocked", "changes"} <= kinds
-    options = {const.CONF_EXCLUDED, const.CONF_HIGH_RISK}
     for path in sorted((folder / "translations").glob("*.json")):
         strings = json.loads(path.read_text())
-        assert kinds <= set(strings["issues"]), path.name
-        assert set(strings["options"]["step"]["settings"]["data"]) == options, path.name
+        assert set(const.ISSUES) <= set(strings["issues"]), path.name
+        assert set(strings["options"]["step"]["init"]["data"]) == {"excluded", "high_risk", "reload"}, path.name
+        assert set(strings["config"]["step"]["user"]["menu_options"]) == {"reload", "later"}, path.name
 
 
 def test_every_translation_has_the_keys_and_placeholders_of_en():
@@ -185,78 +123,33 @@ def test_every_translation_has_the_keys_and_placeholders_of_en():
             assert set(re.findall(r"{(\w+)}", strings[key])) == set(re.findall(r"{(\w+)}", text)), f"{path.name}: {key}"
 
 
-def test_release_version_must_be_x_y_z(tmp_path: Path):
+def test_release_version_must_be_x_y_z_or_a_beta(tmp_path: Path):
     builder = load_builder()
     folder = builder.integration_folder()
-    for bad in ("release-1", "x1", "1.2.0 beta", "v1.2.3", "1.2"):
+    for bad in ("release-1", "x1", "1.2.0 beta", "v1.2.3", "1.2", "1.2.3b", "1.2.3-b1", "1.2.3.b1", "1.2.3B1", "1.2.3rc1", "v1.2.3b1"):
         with pytest.raises(SystemExit):
             builder.write_zip(folder, tmp_path / "dist", bad)
     assert not (tmp_path / "dist").exists()
 
 
-@pytest.mark.parametrize(
-    "change",
-    [
-        {"fingerprints": None},
-        {"fingerprints": [["_TZE200_aaaa"]]},
-        {"fingerprints": [[None, 5]]},
-        {"claimed_elsewhere": [["Other"]]},
-        {"file": 5},
-        {"vendor": None},
-        {"model": ["A"]},
-        {"status": ["generated"]},
-        {"description": 5},
-        {"picture": {"name": "A.png"}},
-        {"upstream_open_prs": [{"url": "https://attacker.example/login"}]},
-        {"upstream_open_prs": [{"number": "4242"}]},
-        {"upstream_open_prs": [{"number": True}]},
-        {"upstream_open_prs": {"number": 4242}},
-        {"sources": []},
-    ],
-)
-def test_manifest_entries_need_every_field_the_integration_reads(change: dict):
-    entry = {"file": "quirks/z2m_tuya_a.py", "fingerprints": [["_TZE200_aaaa", "TS0601"]], "vendor": "Tuya", "model": "A", "status": "generated", "sha256": "0" * 64, "revision": "0123abcd"}
-    assert content.from_manifest({"tuya_a": entry}, tag="content-3", content=3, homeassistant=None, withdrawn={}).shas
-    with pytest.raises(content.BadContent, match="tuya_a"):
-        content.from_manifest({"tuya_a": {**entry, **change}}, tag="content-3", content=3, homeassistant=None, withdrawn={})
+async def test_home_assistant_loads_the_release_versions(hass: HomeAssistant, tmp_path: Path):
+    """The zip of a release and of a beta as Home Assistant's loader finds it in custom_components: it blocks a custom
+    integration whose version it does not take."""
+    builder = load_builder()
+    folder = builder.integration_folder()
+    for version in ("1.2.3", "1.2.3b1"):
+        root = tmp_path / version / "custom_components"
+        with zipfile.ZipFile(builder.write_zip(folder, tmp_path / version, version)) as archive:
+            archive.extractall(root / folder.name)
+        package = types.SimpleNamespace(__name__="custom_components", __path__=[str(root)])
+        integration = await hass.async_add_executor_job(loader.Integration.resolve_from_root, hass, package, folder.name)
+        assert integration is not None and str(integration.version) == version
 
 
-def test_entries_without_a_file_need_their_fingerprints_only():
-    state = content.from_manifest({"acme_d": {"file": None, "fingerprints": [["Acme", "D-1"]]}}, tag="content-3", content=3, homeassistant=None, withdrawn={})
-    assert state.shas == {}
-    for broken in ({"x": []}, {"x": {"file": None}}, []):
-        with pytest.raises(content.BadContent):
-            content.from_manifest(broken, tag="content-3", content=3, homeassistant=None, withdrawn={})
-
-
-@pytest.mark.parametrize(
-    ("fields", "risk", "why"),
-    [
-        ({"risk": "low", "risk_why": []}, "low", ()),
-        ({"risk": "medium", "risk_why": ["number_settings"]}, "medium", ("number_settings",)),
-        ({"risk": "high", "risk_why": ["cover", "take_over"]}, "high", ("cover", "take_over")),
-        # Missing or unknown: the highest. An unknown code is skipped, a repeated one counts once.
-        ({}, "high", ()),
-        ({"risk": "none", "risk_why": ["cover", "a_new_reason", "cover"]}, "high", ("cover",)),
-        ({"risk": "LOW", "risk_why": "cover"}, "high", ()),
-        ({"risk": 1, "risk_why": [5, None, {"code": "cover"}, "thermostat"]}, "high", ("thermostat",)),
-        ({"risk": None, "risk_why": None}, "high", ()),
-    ],
-)
-def test_a_risk_reads_as_the_content_format_says(fields: dict, risk: str, why: tuple):
-    """risk and risk_why are optional: a state with any of them is taken, a risk this release does not
-    know counts as high and a reason it does not know is skipped (CONTENT.md)."""
-    entry = {"file": "quirks/z2m_tuya_a.py", "fingerprints": [["_TZE200_aaaa", "TS0601"]], "vendor": "Tuya", "model": "A", "status": "generated", "sha256": "0" * 64, "revision": "0123abcd", **fields}
-    state = content.from_manifest({"tuya_a": entry}, tag="content-3", content=3, homeassistant=None, withdrawn={})
-    assert (content.risk(state.manifest["tuya_a"]), content.risk_why(state.manifest["tuya_a"])) == (risk, why)
-    assert content.high_risk(entry) is (risk == "high")
-    # A verified file counts as checked, whatever its risk.
-    assert content.high_risk({**entry, "status": "verified"}) is False
-
-
-def test_the_content_format_names_the_risks_and_reasons_this_release_knows():
-    spec = re.sub(r"\s+", " ", (ROOT / "CONTENT.md").read_text())
-    assert re.search(r'`risk` \(optional\): `"low"`, `"medium"` or `"high"`', spec)
-    assert content.RISKS == ("low", "medium", "high") and content.HIGH == content.RISKS[-1]
-    codes = re.search(r"`risk_why` \(optional\): the reasons as codes \(([^)]*)\)", spec)[1]
-    assert tuple(codes.split(", ")) == content.RISK_REASONS
+def test_every_definition_builds():
+    """The loader's trial build of the definitions the zip ships: a definition that fails would show only at the first
+    device it matches. In a process of its own: it registers every quirk of zhaquirks."""
+    folder = load_builder().integration_folder()
+    args = [sys.executable, "-I", str(folder / "loader.py"), "--check", str(folder / "definitions.jsonl")]
+    run = subprocess.run(args, capture_output=True, text=True, timeout=300, check=False)
+    assert run.returncode == 0, (run.stdout[-3000:], run.stderr[-3000:])

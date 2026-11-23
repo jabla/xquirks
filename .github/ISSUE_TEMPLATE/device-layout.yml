@@ -1,16 +1,16 @@
 name: Device layout
-description: A quirk file from this repo does not fit the endpoints of your device. The integration's notice links here with everything filled in.
+description: An xquirks definition steps back for your device because the device lacks an endpoint or cluster it needs.
 title: "Device layout: <manufacturer> <model>"
 labels: [device layout]
 body:
   - type: markdown
     attributes:
-      value: The weekly search reads the device signature below and moves the file's clusters to the endpoints your device has. The signature from the integration's notice holds no name or address of your device. Downloaded diagnostics hold more, such as the network address and attribute values. The search keeps only endpoints and clusters, but the issue shows everything you paste.
+      value: The log of Home Assistant names the definition and the reason ([README, "A device gets no definition"](https://github.com/jabla/xquirks#a-device-gets-no-definition)). The device signature below shows which endpoints and clusters your device has. Downloaded diagnostics hold more, such as the network address and attribute values. The issue shows everything you paste.
   - type: input
     id: file
     attributes:
-      label: Quirk file
-      placeholder: z2m_<vendor>_<model>.py (revision 1a2b3c4d)
+      label: Definition
+      placeholder: <vendor>_<model> (revision 1a2b3c4d)
     validations:
       required: true
   - type: input
@@ -26,7 +26,7 @@ body:
     id: signature
     attributes:
       label: Device signature
-      description: "The signature as the device joined, before any quirk. Without the integration's link: the device's diagnostics (the device's page > three-dot menu > Download diagnostics). The search takes the signature from them. For a device that runs no quirk, Manage Zigbee device > Signature in that menu is enough."
+      description: "The signature as the device joined, before any quirk: the device's diagnostics hold it (the device's page > three-dot menu > Download diagnostics). For a device that runs no quirk, Manage Zigbee device > Signature in that menu is enough."
       render: json
     validations:
       required: true
