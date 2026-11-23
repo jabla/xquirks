@@ -31,6 +31,7 @@ pytest-homeassistant==2026.11.0
 # Home Assistant's zha integration and its dependencies (usb, homeassistant_hardware, hassio), pinned as in 2026.11.0.
 zha==2.4.2
 zha-quirks==2.4.1
+zigpy==2.4.1
 aiousbwatcher==1.1.2
 serialx==1.15.1
 universal-silabs-flasher==1.3.0
@@ -44,6 +45,7 @@ pytest-homeassistant==2026.11.1
 # Home Assistant's zha integration and its dependencies (usb, homeassistant_hardware, hassio), pinned as in 2026.11.1.
 zha==2.4.3
 zha-quirks==2.4.2
+zigpy==2.4.2
 aiousbwatcher==1.1.2
 serialx==1.15.2
 universal-silabs-flasher==1.3.1
@@ -181,10 +183,9 @@ def test_the_components_pin_wins_over_zhas_and_the_test_packages(files, monkeypa
     requirements, _ = files
     monkeypatch.setitem(NETWORK, ZHA_URL, {"info": {"requires_dist": ["zigpy==2.4.2", "zha-quirks==2.4.0", "serialx==1.0.0"]}})
     monkeypatch.setitem(NETWORK, harness_url(), {"info": {"requires_dist": [f"homeassistant=={RELEASE}", "zha-quirks==2.3.9", "zigpy==2.3.9"]}})
-    requirements.write_text(REQUIREMENTS + "zigpy==2.4.1\n")
     assert run(monkeypatch, capsys, "--requirements", str(requirements)) == SAID
     # zigpy: zha's pin, not the test package's.
-    assert requirements.read_text() == RAISED + "zigpy==2.4.2\n"
+    assert requirements.read_text() == RAISED
 
 
 @pytest.mark.parametrize("zha_requires", [["zigpy==2.4.2"], ["zigpy==2.4.2", 'zha-quirks==9.9.9; extra == "testing"'],
@@ -195,9 +196,11 @@ def test_a_pin_the_release_does_not_pin_exactly_is_kept_and_named(files, monkeyp
     monkeypatch.setitem(NETWORK, component("zha"), manifest("zha==2.4.3"))
     monkeypatch.setitem(NETWORK, ZHA_URL, {"info": {"requires_dist": zha_requires}})
     out = run(monkeypatch, capsys, "--requirements", str(requirements))
+    kept = ["zha-quirks==2.4.1"] if "zigpy==2.4.2" in (zha_requires or ()) else ["zha-quirks==2.4.1", "zigpy==2.4.1"]
     assert out.splitlines()[1:] == [
-        f"- {requirements} keeps zha-quirks==2.4.1, which neither the components' manifests nor zha nor pytest-homeassistant pin exactly: fix it by hand"]
-    assert requirements.read_text() == RAISED.replace("zha-quirks==2.4.2", "zha-quirks==2.4.1")
+        f"- {requirements} keeps {pin}, which neither the components' manifests nor zha nor pytest-homeassistant pin exactly: fix it by hand" for pin in kept]
+    raised = RAISED.replace("zha-quirks==2.4.2", "zha-quirks==2.4.1")
+    assert requirements.read_text() == (raised if len(kept) == 1 else raised.replace("zigpy==2.4.2", "zigpy==2.4.1"))
 
 
 def test_pins_under_a_marker_are_not_taken(files, monkeypatch, capsys):
@@ -248,7 +251,7 @@ def test_a_line_it_does_not_understand_stops_it(files, monkeypatch, capsys, line
     requirements, _ = files
     requirements.write_text(REQUIREMENTS + line + "\n")
     stop = refused(monkeypatch, capsys, files)
-    assert f"{requirements}:12: {line!r} is no pin" in str(stop.code)
+    assert f"{requirements}:13: {line!r} is no pin" in str(stop.code)
 
 
 @pytest.mark.parametrize("hacs_text", ["{", "[]", None])
