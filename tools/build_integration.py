@@ -4,10 +4,8 @@ Usage:
     python tools/build_integration.py --version 1.2.0 --zip dist
 
 The zip holds the integration folder's content at its root (as HACS expects for zip_release),
-the version stamped into its manifest.json. It holds no quirk files: the integration loads their
-list from the newest content-<n> tag of the repository and downloads a file when it would offer
-it. It holds the guard (guard.py, fixed_code.json) every file must pass. The zip's name comes
-from hacs.json ("filename"). The source tree is not changed.
+the version stamped into its manifest.json: the code, the loader and the definitions. The zip's
+name comes from hacs.json ("filename"). The source tree is not changed.
 """
 
 from __future__ import annotations
@@ -31,13 +29,14 @@ def integration_folder(root: pathlib.Path = ROOT) -> pathlib.Path:
     return folders[0]
 
 
-# Home Assistant refuses to load a custom integration whose version AwesomeVersion rejects.
-VERSION = re.compile(r"\d+\.\d+\.\d+")
+# X.Y.Z, or X.Y.ZbN for a beta. Home Assistant refuses to load a custom integration whose version
+# AwesomeVersion rejects.
+VERSION = re.compile(r"\d+\.\d+\.\d+(?:b\d+)?")
 
 
 def write_zip(folder: pathlib.Path, out: pathlib.Path, version: str | None, root: pathlib.Path = ROOT) -> pathlib.Path:
     if version is not None and not VERSION.fullmatch(version):
-        sys.exit(f"release version {version!r} is not X.Y.Z (tag vX.Y.Z)")
+        sys.exit(f"release version {version!r} is not X.Y.Z or X.Y.ZbN (tag vX.Y.Z or vX.Y.ZbN)")
     name = json.loads((root / "hacs.json").read_text())["filename"]
     with tempfile.TemporaryDirectory() as tmp:
         stage = pathlib.Path(tmp) / folder.name

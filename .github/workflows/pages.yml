@@ -1,14 +1,16 @@
 name: Pages
 
-# The quirk finder page: site/ as it is, no build step. The page reads the device list itself from
-# the content branch on raw.githubusercontent.com (state.json at the branch head, everything else
-# from the content-<n> tag it names), so a new content state needs no deploy. Runs on a push to main
-# that changes site/ and by hand; the github-pages environment deploys from main alone.
+# The finder page: site/ of the latest release (not a pre-release) with the license of the device data and
+# release.json, which names the release. The page and its index (site/devices.json, which CI checks against the
+# definitions) come from that release's tag. Runs after each release and by hand. The github-pages environment deploys
+# from main alone. A latest release without site/devices.json (v0.3.0 and older) fails the run and leaves the published
+# page as it is.
 
 on:
-  push:
-    branches: [main]
-    paths: ["site/**"]
+  # The release workflow publishes with the workflow token, whose release event starts no workflow.
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -18,16 +20,45 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
-    # A run by hand from another branch publishes nothing.
-    if: github.ref == 'refs/heads/main'
+    # A run by hand from another branch publishes nothing, nor does a failed release.
+    if: github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: The latest release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName,publishedAt --jq '.tagName + " " + .publishedAt[:10]')
+          read -r tag date <<< "$release"
+          if ! [[ "$tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::the latest release $tag is not vX.Y.Z"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "date=$date" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: refs/tags/${{ steps.release.outputs.tag }}
           persist-credentials: false
+      - name: The page with the license and the release
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          DATE: ${{ steps.release.outputs.date }}
+        run: |
+          if ! [ -s site/devices.json ]; then
+            echo "::error::$TAG has no site/devices.json"
+            exit 1
+          fi
+          cp custom_components/*/THIRD_PARTY.md site/
+          jq -n --arg tag "$TAG" --arg date "$DATE" '{tag: $tag, date: $date}' > site/release.json
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site

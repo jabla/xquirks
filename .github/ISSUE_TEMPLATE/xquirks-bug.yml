@@ -1,0 +1,24 @@
+name: Bug in the integration or the finder
+description: Something in xquirks itself or in the finder does not work. A device with wrong values goes to "Wrong or missing value".
+title: "Bug: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      placeholder: xquirks 0.4.0, Home Assistant 2026.11.2
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: "Lines of the Home Assistant log that mention xquirks. For the finder: the browser and the errors its console shows."
+      render: text

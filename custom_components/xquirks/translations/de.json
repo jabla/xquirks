@@ -3,341 +3,117 @@
     "step": {
       "user": {
         "title": "xquirks",
-        "description": "Bietet die Quirk-Dateien an, die zu deinen ZHA-Geräten passen. Geschrieben wird erst, wenn du die Änderungsliste unter Reparaturen bestätigst.\n\nOrdner für eigene Quirks von ZHA: `{folder}`"
+        "description": "xquirks ergänzt ZHA um Gerätedefinitionen für Zigbee-Geräte, die ZHA noch nicht vollständig unterstützt.\n\nDie Einrichtung schreibt die Startdatei `xquirks.py` und ihre Optionsdatei `xquirks_options.json` in ZHAs Ordner für eigene Quirks `{folder}`. Ab dann lädt die Startdatei die Definitionen bei jedem Start von ZHA.\n\nPasst ein Quirk von dir oder einer von ZHAs eigenen Quirks zu einem Gerät, bleibt dieser Quirk. Ausnahme: Ein paar Definitionen ersetzen bewusst einen Quirk von ZHA, um zu ergänzen, was ihm fehlt. Alle seine Entitäten bleiben dabei erhalten.\n\nWährend ZHA neu lädt, sind deine Zigbee-Geräte für ein paar Sekunden nicht verfügbar.",
+        "menu_options": {
+          "reload": "Einrichten und ZHA jetzt neu laden",
+          "later": "Einrichten, ZHA lädt die Definitionen bei seinem nächsten Start"
+        }
       }
     },
     "abort": {
-      "single_instance_allowed": "Bereits eingerichtet. Es ist nur ein Eintrag möglich."
-    }
-  },
-  "config_subentries": {
-    "device_check": {
-      "initiate_flow": {
-        "user": "Gerät prüfen"
-      },
-      "entry_type": "Geräteprüfung",
-      "step": {
-        "check": {
-          "title": "Welches Gerät",
-          "description": "Welches Gerät soll xquirks nach seinen aktuellen Werten fragen? Ein Tuya-Gerät bekommt eine Datenabfrage, bei jedem anderen Gerät liest xquirks die Werte hinter den Entitäten des Quirks. Am Gerät ändert sich dadurch nichts. Wecke ein Batteriegerät vorher auf, zum Beispiel mit seiner Taste.\n\nDann vergleichst du jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut. Daraus entsteht ein Bericht für einen Gerätetest auf GitHub. Er nennt keine Adresse des Geräts, keinen Raum und keinen der Namen, die du vergeben hast.",
-          "data": {
-            "device": "Gerät"
-          }
-        },
-        "ask": {
-          "title": "Gerät abfragen"
-        },
-        "values": {
-          "title": "Mit dem Gerät vergleichen",
-          "description": "**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nVergleiche jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut.",
-          "menu_options": {
-            "all_match": "Alle Werte stimmen",
-            "mismatch": "Etwas stimmt nicht"
-          }
-        },
-        "values_no_answer": {
-          "title": "Mit dem Gerät vergleichen",
-          "description": "Das Gerät hat nicht geantwortet. Die Werte unten hat ZHA früher gespeichert. Um es noch einmal zu fragen, wecke es auf, zum Beispiel mit seiner Taste. Starte die Prüfung dann erneut.\n\n**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nVergleiche jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut.",
-          "menu_options": {
-            "all_match": "Alle Werte stimmen",
-            "mismatch": "Etwas stimmt nicht"
-          }
-        },
-        "values_no_answer_mains": {
-          "title": "Mit dem Gerät vergleichen",
-          "description": "Das Gerät hat nicht geantwortet. Die Werte unten hat ZHA früher gespeichert. Es ist gerade nicht erreichbar. Um es noch einmal zu fragen, sieh nach, ob es Strom hat. Starte die Prüfung dann erneut.\n\n**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nVergleiche jeden Wert mit dem Display des Geräts, seiner App oder dem, was es tut.",
-          "menu_options": {
-            "all_match": "Alle Werte stimmen",
-            "mismatch": "Etwas stimmt nicht"
-          }
-        },
-        "results": {
-          "title": "Markieren, was nicht stimmt",
-          "description": "**{device}** mit `{file}` (Revision {revision}):\n\n{entities}\n\nMarkiere die Werte, die nicht mit dem Gerät übereinstimmen. Werte, die du als richtig erkannt hast, kommen in die erste Liste.",
-          "data": {
-            "matches": "Stimmen mit dem Gerät überein",
-            "wrong": "Stimmen nicht mit dem Gerät überein"
-          }
-        },
-        "report": {
-          "title": "Gerätetest melden",
-          "description": "Werte, die mit dem Gerät übereinstimmen: {matches}. Nicht verglichen: {unchecked}.\n\n**Melden** öffnet das Formular auf GitHub. Es ist mit dem Bericht ausgefüllt. Prüfe es und sende es ab.",
-          "submit": "Melden"
-        },
-        "report_wrong": {
-          "title": "Falsche Werte melden",
-          "description": "Werte, die nicht mit dem Gerät übereinstimmen: {wrong}. Übereinstimmend: {matches}. Nicht verglichen: {unchecked}.\n\n**Melden** öffnet das Formular auf GitHub. Es ist mit dem Bericht ausgefüllt. Beschreibe, was das Gerät zeigt, prüfe das Formular und sende es ab.",
-          "submit": "Melden"
-        },
-        "thumbs_up": {
-          "title": "Gerätetest bestätigen",
-          "description": "Für dieses Gerät mit derselben Firmware gibt es schon einen Gerätetest auf GitHub. Gib ihm dort einen Daumen hoch: Das zählt als deine Bestätigung (dafür brauchst du ein GitHub-Konto). Bisherige Bestätigungen: {count}. Ab {threshold} kann die Datei für alle als geprüft gelten.",
-          "submit": "Gerätetest öffnen"
-        },
-        "open": {
-          "title": "Formular auf GitHub",
-          "description": "Kein neuer Tab? **Website öffnen** öffnet das Formular. Klappt das nicht, [öffne das Formular auf GitHub]({link})."
-        },
-        "open_test": {
-          "title": "Gerätetest auf GitHub",
-          "description": "Kein neuer Tab? **Website öffnen** öffnet den Gerätetest. Klappt das nicht, [öffne ihn auf GitHub]({link})."
-        }
-      },
-      "progress": {
-        "asking": "xquirks fragt das Gerät nach seinen Werten. Das dauert höchstens eine halbe Minute."
-      },
-      "error": {
-        "both": "Markiere jeden Wert nur in einer der beiden Listen.",
-        "nothing": "Markiere mindestens einen Wert."
-      },
-      "abort": {
-        "not_loaded": "xquirks ist nicht geladen. Lade es neu und versuche es noch einmal.",
-        "zha_not_loaded": "ZHA ist nicht geladen. Versuche es noch einmal, sobald es läuft.",
-        "no_device": "Gerade verwendet keines der Geräte dieses Hinweises die Datei oder ZHA hat diese Geräte nicht. Versuche es später noch einmal.",
-        "device_gone": "Das Gerät verwendet seine Datei von xquirks nicht mehr oder ZHA hat es gerade nicht.",
-        "check_failed": "Die Prüfung ist fehlgeschlagen. Das Home-Assistant-Protokoll nennt den Grund.",
-        "no_entities": "Die Datei fügt diesem Gerät keine Entität hinzu, die die Prüfung zeigen kann.",
-        "gone": "Nichts mehr zu tun: Dieser Hinweis wurde inzwischen geschlossen.",
-        "file_changed": "Nichts zu prüfen: Die Datei wurde aktualisiert oder entfernt, seit dieser Hinweis kam.",
-        "nothing_to_check": "Gerade verwendet keines deiner Geräte eine Datei von xquirks. Ein Gerät, das xquirks in Ruhe lässt (deaktiviert oder in den Optionen ausgewählt), wird nicht angeboten.",
-        "opened": "Danke! Das Formular ist in einem neuen Tab offen.",
-        "opened_test": "Danke! Der Gerätetest ist in einem neuen Tab offen. Gib ihm dort einen Daumen hoch."
-      }
+      "no_folder": "ZHA hat noch keinen Ordner für eigene Quirks.\n\n1. Lege den Ordner an, zum Beispiel `/config/custom_zha_quirks` (mit der App File editor, Samba oder SSH). Er muss vor dem nächsten Schritt existieren.\n2. Füge diese Zeilen in `configuration.yaml` ein:\n\n```yaml\nzha:\n  custom_quirks_path: /config/custom_zha_quirks/\n```\n\n3. Starte Home Assistant neu und füge xquirks dann noch einmal hinzu.",
+      "write_failed": "Schreiben in ZHAs Ordner für eigene Quirks fehlgeschlagen: {error}"
     }
   },
   "options": {
     "step": {
-      "settings": {
-        "title": "Was xquirks anbietet",
-        "description": "**Geräte**: xquirks installiert keine Datei nur für diese Geräte. Dateien, die nur sie verwenden, gehen mit der nächsten Änderungsliste. Eine Datei, die ein anderes Gerät braucht, wird trotzdem installiert oder bleibt: ZHA wendet sie auch auf diese Geräte an (die Änderungsliste nennt sie).\n\nIn Home Assistant deaktivierte Geräte lässt xquirks genauso in Ruhe.\n\n**Dateien mit hohem Risiko anbieten**: Dateien für Rollläden und Thermostate, Dateien, die ZHAs eigenen Quirk ersetzen, und Dateien mit einer bekannten Schwachstelle hält xquirks zurück, bis sie an einem Gerät geprüft sind. Schalte das ein, um sie trotzdem in der Änderungsliste zu bekommen, mit ihrem Risiko markiert.",
+      "init": {
+        "title": "Optionen von xquirks",
+        "description": "Änderungen gelten ab dem nächsten Start von ZHA: sofort mit **ZHA jetzt neu laden**, sonst nach dem nächsten Neustart von Home Assistant.",
         "data": {
-          "excluded": "Geräte",
-          "high_risk": "Dateien mit hohem Risiko anbieten"
+          "excluded": "Geräte, die xquirks in Ruhe lässt",
+          "high_risk": "Definitionen mit hohem Risiko verwenden",
+          "reload": "ZHA jetzt neu laden"
+        },
+        "data_description": {
+          "excluded": "Die Liste zeigt die Geräte mit einer xquirks-Definition und die, die du schon ausgewählt hast. Ein ausgewähltes Gerät verwendet stattdessen ZHAs eigenen Quirk, einen Quirk von dir oder keinen.",
+          "high_risk": "Definitionen mit hohem Risiko warten, bis sie an einem Gerät geprüft sind: die für Rollläden und Thermostate sowie die mit einer bekannten Schwachstelle. Schalte das ein, um sie trotzdem zu verwenden.",
+          "reload": "Deine Zigbee-Geräte sind für ein paar Sekunden nicht verfügbar."
         }
       }
+    },
+    "abort": {
+      "no_folder": "ZHA hat keinen Ordner für eigene Quirks. Unter Einstellungen > System > Reparaturen steht, wie du einen anlegst.",
+      "write_failed": "Schreiben in ZHAs Ordner für eigene Quirks fehlgeschlagen: {error}",
+      "options_broken": "xquirks kann seine Optionsdatei nicht verwenden: {error}\n\nRepariere die Datei oder lösche sie und öffne die Optionen dann noch einmal. Ohne die Datei lässt xquirks kein Gerät in Ruhe und Definitionen mit hohem Risiko bleiben aus."
     }
   },
   "issues": {
     "missing_quirks_path": {
       "title": "ZHA hat keinen Ordner für eigene Quirks",
-      "description": "ZHA lädt eigene Quirk-Dateien nur aus einem Ordner, der in configuration.yaml steht. Solange es keinen gibt, bietet xquirks nichts an.\n\n1. Lege den Ordner an, zum Beispiel `/config/custom_zha_quirks` (mit der App File editor, Samba oder SSH). Er muss vor dem nächsten Schritt existieren.\n2. Füge diese Zeilen in `configuration.yaml` ein:\n\n```yaml\nzha:\n  custom_quirks_path: /config/custom_zha_quirks/\n```\n\n3. Starte Home Assistant neu."
+      "description": "ZHA lädt eigene Quirks nur aus einem Ordner, der in `configuration.yaml` steht. Solange es keinen gibt, lädt xquirks keine Definitionen.\n\n1. Lege den Ordner an, zum Beispiel `/config/custom_zha_quirks` (mit der App File editor, Samba oder SSH). Er muss vor dem nächsten Schritt existieren.\n2. Füge diese Zeilen in `configuration.yaml` ein:\n\n```yaml\nzha:\n  custom_quirks_path: /config/custom_zha_quirks/\n```\n\n3. Starte Home Assistant neu. Danach bietet dir eine Reparatur an, die Startdatei von xquirks zu schreiben."
     },
-    "folder_unreadable": {
-      "title": "Der Ordner für eigene Quirks ist nicht lesbar",
-      "description": "xquirks kann ZHAs Ordner für eigene Quirks `{folder}` nicht lesen: {error}\n\nBis das wieder geht, schreibt xquirks nichts und lässt die Änderungsliste und die Hinweise, wie sie sind. Prüfe die Zugriffsrechte des Ordners."
+    "quirks_disabled": {
+      "title": "ZHA lädt keine Quirks",
+      "description": "`enable_quirks: false` unter `zha:` in `configuration.yaml` schaltet jeden Quirk ab: ZHAs eigene, deine und die xquirks-Definitionen.\n\nEntferne diese Zeile oder setze sie auf `true` und starte Home Assistant dann neu."
     },
-    "no_content_state": {
-      "title": "xquirks hat noch keine Quirk-Liste",
-      "description": "xquirks hat noch keine Liste der Quirk-Dateien, die es verwenden kann: {reason}\n\nEs versucht es alle 15 Minuten erneut. **Nach Quirk-Updates suchen** (Einstellungen > Geräte & Dienste > xquirks) versucht es sofort."
-    },
-    "changes": {
-      "title": "Quirk-Änderungen für deine Zigbee-Geräte: {count}",
+    "stub": {
+      "title": "Die Startdatei von xquirks fehlt oder ist veraltet",
       "fix_flow": {
         "step": {
           "confirm": {
-            "title": "Quirk-Änderungen",
-            "description": "{changes}\n\n**Alle anwenden** schreibt diese Änderungen nach `{folder}` und lädt ZHA neu: Deine Zigbee-Geräte sind für ein paar Sekunden nicht verfügbar. Schlägt ein Schritt fehl, versucht xquirks zurückzunehmen, was es geändert hat.\n\n**Nicht jetzt** stellt diese Liste zurück. Eine andere Liste kommt als neue Reparaturmeldung.",
-            "menu_options": {
-              "apply": "Alle anwenden",
-              "not_now": "Nicht jetzt"
-            }
+            "title": "Startdatei neu schreiben",
+            "description": "Die Startdatei `xquirks.py` in ZHAs Ordner für eigene Quirks `{folder}` lädt bei jedem Start von ZHA die xquirks-Definitionen. Sie fehlt oder weicht von der ab, die diese Version von xquirks schreibt.\n\n**OK** schreibt sie neu und lädt ZHA neu. Deine Zigbee-Geräte sind für ein paar Sekunden nicht verfügbar."
           }
         },
         "abort": {
-          "not_loaded": "xquirks ist nicht geladen. Lade es neu und versuche es noch einmal.",
-          "stale": "Nichts wurde geändert: Die Liste hat sich geändert, während dieser Dialog offen war. Die neue steht unter Einstellungen > System > Reparaturen.",
-          "held_pending": "Nichts wurde geändert: Eine frühere Änderung wartet darauf, dass ZHA den Ordner für eigene Quirks neu lädt. Lade ZHA neu oder warte auf seinen nächsten Start.",
-          "held_unchecked": "Nichts wurde geändert: Eine Datei der Liste konnte noch nicht heruntergeladen und geprüft werden. xquirks versucht es in ein paar Minuten wieder.",
-          "held_zha_unknown": "Nichts wurde geändert: ZHA ist nicht geladen oder xquirks kann nicht lesen, welche Quirks ZHA anwendet. Die Liste wartet auf ZHA.",
-          "held_no_content": "Nichts wurde geändert: xquirks hat gerade keine Quirk-Liste, die es verwenden kann.",
-          "held_no_folder": "Nichts wurde geändert: ZHA hat keinen Ordner für eigene Quirks.",
-          "held_unreadable_folder": "Nichts wurde geändert: Der Ordner für eigene Quirks ist nicht lesbar.",
-          "failed": "Nichts wurde geändert: {failed}\n\nxquirks hat zurückgenommen, was es vor diesem Schritt geändert hatte. Sobald die Ursache behoben ist, zeigt die Reparaturmeldung, was noch zu tun ist.",
-          "failed_partly": "Bei einem Fehler angehalten: {failed}\n\nDiese Änderungen konnte xquirks nicht zurücknehmen:\n\n{left}\n\nZHA lädt jetzt oder bei seinem nächsten Start, was in `{folder}` liegt. Die nächste Liste bringt den Rest in Ordnung.",
-          "done": "{done}\n\nZHA lädt `{folder}` jetzt neu: Deine Zigbee-Geräte sind in ein paar Sekunden wieder da.\n\nxquirks beobachtet die Werte jeder installierten oder aktualisierten Datei einen Tag lang. Ein Hinweis sagt dir, wenn sie auffällig wirken. Bei einer Datei, die noch nicht an einem Gerät geprüft ist, kann dich ein Hinweis auch um einen Gerätetest bitten. Um die Werte selbst mit dem Gerät zu vergleichen: Einstellungen > Geräte & Dienste > xquirks > Gerät prüfen.",
-          "done_zha_not_loaded": "{done}\n\nZHA ist gerade nicht geladen. Es übernimmt die Änderungen in `{folder}` beim Start.\n\nSobald ZHA läuft, beobachtet xquirks die Werte jeder installierten oder aktualisierten Datei einen Tag lang. Ein Hinweis sagt dir, wenn sie auffällig wirken. Bei einer Datei, die noch nicht an einem Gerät geprüft ist, kann dich ein Hinweis auch um einen Gerätetest bitten.",
-          "not_now": "Zurückgestellt: Nichts wurde geändert. Um später zu entscheiden: Einstellungen > System > Reparaturen > Drei-Punkte-Menü > Ignorierte Reparaturen anzeigen. Eine andere Liste kommt als neue Reparaturmeldung."
+          "no_folder": "ZHA hat keinen Ordner für eigene Quirks. Unter Einstellungen > System > Reparaturen steht, wie du einen anlegst.",
+          "write_failed": "Schreiben in ZHAs Ordner für eigene Quirks fehlgeschlagen: {error}"
         }
       }
     },
-    "blocked": {
-      "title": "{quirk} läuft mit einem anderen eigenen Quirk",
-      "description": "{picture}{devices}\n\nxquirks hat `{file}` dafür ({status}), schreibt die Datei aber nicht, solange ein eigener Quirk von dir das Gerät übernimmt: ZHA würde eine der beiden wählen. Zum Wechseln entferne deine Quirk-Datei und lade ZHA neu. Danach bringt die Änderungsliste `{file}`."
+    "options_broken": {
+      "title": "Die Optionsdatei von xquirks ist defekt",
+      "description": "xquirks kann seine Optionsdatei nicht verwenden: {error}\n\nBis sie repariert ist, lädt ZHA die xquirks-Definitionen ohne deine Optionen: auch für die Geräte, die xquirks in Ruhe lassen soll, aber ohne Definitionen mit hohem Risiko.\n\nRepariere die Datei oder lösche sie und lade ZHA dann neu."
     },
-    "held_back": {
-      "title": "Quirk mit hohem Risiko zurückgehalten: {quirk}",
+    "devices_changed": {
+      "title": "xquirks-Definitionen deiner Geräte geändert",
       "fix_flow": {
         "step": {
           "confirm": {
-            "title": "Quirk mit hohem Risiko zurückgehalten",
-            "description": "{picture}{devices}\n\nxquirks hat `{file}` dafür ({status}), hält die Datei aber zurück, bis sie an einem Gerät geprüft ist. {reasons}\n\n**Dateien mit hohem Risiko anbieten** schaltet diese Option ein (Einstellungen > Geräte & Dienste > xquirks > Konfigurieren). Die Option gibt jede Datei mit hohem Risiko frei, die gerade zurückgehalten wird:\n\n{files}\n\nDie Änderungsliste bietet sie dann an und fragt noch einmal, bevor sie etwas installiert. **Nicht jetzt** stellt diesen Hinweis zurück.",
-            "menu_options": {
-              "apply": "Dateien mit hohem Risiko anbieten",
-              "not_now": "Nicht jetzt"
-            }
+            "title": "xquirks-Definitionen deiner Geräte geändert",
+            "description": "{devices}",
+            "submit": "OK"
           }
         },
         "abort": {
-          "not_loaded": "xquirks ist nicht geladen. Lade es neu und versuche es noch einmal.",
-          "stale": "Nichts wurde geändert: Die zurückgehaltenen Dateien haben sich geändert, während dieser Dialog offen war. Ein Hinweis, der noch gilt, steht unter Einstellungen > System > Reparaturen.",
-          "already_on": "Nichts wurde geändert: **Dateien mit hohem Risiko anbieten** ist schon eingeschaltet. Die Änderungsliste bietet die Dateien an.",
-          "held": "Nichts wurde geändert: xquirks kann gerade nicht sagen, welche Dateien es zurückhält, zum Beispiel während eine Änderung darauf wartet, dass ZHA den Ordner für eigene Quirks neu lädt. Öffne diesen Hinweis später noch einmal.",
-          "done": "**Dateien mit hohem Risiko anbieten** ist jetzt eingeschaltet. Die Änderungsliste unter Einstellungen > System > Reparaturen bietet die Dateien dann an. Die Liste fragt, bevor sie etwas installiert. Zum Ausschalten: Einstellungen > Geräte & Dienste > xquirks > Konfigurieren.",
-          "not_now": "Zurückgestellt: Nichts wurde geändert. Um später zu entscheiden: Einstellungen > System > Reparaturen > Drei-Punkte-Menü > Ignorierte Reparaturen anzeigen."
-        }
-      }
-    },
-    "users_file": {
-      "title": "Deine Datei trägt den Namen eines Quirks: {quirk}",
-      "description": "{picture}`{file}` in `{folder}` trägt den Namen einer xquirks-Datei, wurde aber nicht von xquirks geschrieben. xquirks lässt deine Datei in Ruhe und kann seine eigene nicht installieren.\n\nUm die xquirks-Datei zu verwenden, lösche deine und lade ZHA neu. Danach bringt die Änderungsliste sie."
-    },
-    "not_applied": {
-      "title": "ZHA verwendet den Quirk nicht: {quirk}",
-      "description": "{picture}xquirks hat `{file}` installiert, ZHA wendet die Datei aber nicht auf diese Geräte an:\n\n{devices}\n\nEin Gerät mit einem anderen eigenen Quirk: Jene Datei gewinnt. Entferne eine der beiden. Ein Gerät ohne Quirk: ZHA konnte die Datei nicht laden. Siehe Home-Assistant-Protokoll."
-    },
-    "misfit": {
-      "title": "Quirk passt nicht zu deinem Gerät: {quirk}",
-      "description": "{picture}`{file}` passt nicht zu den Endpunkten dieser Geräte. xquirks installiert die Datei deshalb nicht für sie. Ein Gerät mit einer älteren Version behält diese, bis ein Update für andere Geräte sie ersetzt:\n\n{devices}\n\nJeder Link öffnet eine vorausgefüllte Meldung auf GitHub mit den Endpunkten und Clustern des Geräts, ohne seinen Namen und seine Adresse. Damit kann eine spätere Version der Datei zum Gerät passen. Bevor du eine abschickst, sieh in die [offenen Meldungen]({reports}): Wenn eine dasselbe Gerät betrifft, reicht dort ein Daumen hoch oder ein Kommentar."
-    },
-    "changed": {
-      "title": "Geänderter Quirk bleibt unberührt: {quirk}",
-      "description": "{picture}`{file}` in `{folder}` wurde geändert, nachdem xquirks die Datei installiert hat. xquirks lässt sie, wie sie ist: Keine Änderungsliste aktualisiert oder entfernt sie.\n\nUm sie xquirks zurückzugeben, mache deine Änderung rückgängig oder lösche die Datei."
-    },
-    "reload": {
-      "title": "Quirk-Änderungen warten auf ein Neuladen von ZHA: {count}",
-      "fix_flow": {
-        "step": {
-          "confirm": {
-            "title": "ZHA neu laden",
-            "description": "Geändert, seit ZHA `{folder}` zuletzt geladen hat:\n\n{changes}\n\nZHA jetzt neu laden? Deine Zigbee-Geräte sind für ein paar Sekunden nicht verfügbar. Ein Neustart von Home Assistant bewirkt dasselbe.",
-            "menu_options": {
-              "apply": "ZHA neu laden",
-              "not_now": "Nicht jetzt"
-            }
-          }
+          "not_loaded": "xquirks ist gerade nicht geladen. Öffne diesen Hinweis noch einmal, sobald es geladen ist."
         },
-        "abort": {
-          "not_loaded": "xquirks ist nicht geladen. Lade es neu und versuche es noch einmal.",
-          "nothing_to_do": "Nichts mehr zu tun: Die Dateien oder Geräte haben sich inzwischen geändert.",
-          "failed": "Nichts wurde geändert:\n\n{failed}",
-          "not_now": "Zurückgestellt: ZHA übernimmt die Änderungen, wenn es das nächste Mal lädt, spätestens nach einem Neustart von Home Assistant. Um später zu entscheiden: Einstellungen > System > Reparaturen > Drei-Punkte-Menü > Ignorierte Reparaturen anzeigen."
-        }
-      }
-    },
-    "withdrawn_copy": {
-      "title": "Zurückgezogene Quirk-Kopie: {quirk}",
-      "description": "{picture}`{file}` in `{folder}` hat keinen Eintrag in xquirks: Die Datei wurde von Hand abgelegt oder ihr Eintrag ging verloren. Sie ist Revision {revision}, die zurückgezogen wurde: {reason}\n\nZHA lädt sie für deine Geräte. Entferne sie aus dem Ordner und lade ZHA neu. Danach bringt die Änderungsliste die aktuelle Datei, falls es eine für dieses Home-Assistant-Release gibt."
-    },
-    "withdrawn_installed": {
-      "title": "Zurückgezogene Quirk-Revision in Gebrauch: {quirk}",
-      "description": "{picture}`{file}` in `{folder}` ist Revision {revision}, die zurückgezogen wurde: {reason}\n\nZHA verwendet sie für deine Geräte, bis die Änderungsliste sie aktualisiert oder entfernt. Die Liste steht unter Einstellungen > System > Reparaturen, eine ignorierte unter Ignorierte Reparaturen anzeigen."
-    },
-    "download_waiting": {
-      "title": "Quirk-Änderungen warten auf einen Download",
-      "description": "xquirks konnte diese Dateien der Änderungsliste noch nicht herunterladen:\n\n{files}\n\nDie Änderungsliste wartet, bis sie geprüft sind. xquirks versucht es alle 15 Minuten wieder."
-    },
-    "unavailable": {
-      "title": "Quirk-Datei kann nicht heruntergeladen werden: {quirk}",
-      "description": "`{file}` ist nicht verwendbar: {error}\n\nKeine Änderungsliste schreibt sie. Eine installierte Kopie bleibt auf ihrer Revision, solange ihre Geräte sie verwenden und keine andere Datei eines davon übernimmt. Sieh zuerst in die [offenen Meldungen]({reports}): Wenn eine passt, reicht dort ein Daumen hoch oder ein Kommentar. Sonst melde es bitte im Issue-Tracker von xquirks und hänge die Diagnosedaten von xquirks an (Einstellungen > Geräte & Dienste > xquirks > Drei-Punkte-Menü > Diagnosedaten herunterladen)."
-    },
-    "refused": {
-      "title": "Quirk-Datei abgelehnt: {quirk}",
-      "description": "`{file}` (Revision {revision}) enthält Code, den xquirks in einer Quirk-Datei nicht zulässt, oder zielt auf Geräte, für die sie nicht angeboten wird. xquirks hat sie abgelehnt: Keine Änderungsliste schreibt sie. Eine installierte Kopie bleibt auf ihrer Revision, solange ihre Geräte sie verwenden und keine andere Datei eines davon übernimmt. Die Änderungsliste sagt, wann sie geht.\n\nDas sollte nie passieren. Es kann bedeuten, dass jemand das Repository manipuliert hat, aus dem xquirks seine Quirk-Dateien lädt. Sieh zuerst in die [offenen Meldungen]({reports}): Wenn eine passt, reicht dort ein Daumen hoch oder ein Kommentar. Sonst melde es bitte im Issue-Tracker von xquirks und hänge die Diagnosedaten von xquirks an (Einstellungen > Geräte & Dienste > xquirks > Drei-Punkte-Menü > Diagnosedaten herunterladen)."
-    },
-    "tuya_check": {
-      "title": "Tuya-Quirk-Dateien angehalten: ihre Typprüfung schlägt fehl",
-      "description": "Der typisierte Tuya-Cluster der Tuya-Quirk-Dateien hat seinen Selbsttest auf der zhaquirks-Version nicht bestanden, die dieses Home Assistant verwendet: {reason}\n\nEr prüft jeden Datenpunktwert gegen den Typ seines Attributs. Bis er wieder funktioniert, installiert und aktualisiert xquirks keine Tuya-Datei. Installierte Tuya-Dateien bleiben, wie sie sind, aber ihre Geräte zeigen in der Zwischenzeit vielleicht keine neuen Werte. Wenn ein Gerät keine neuen Werte mehr zeigt, kannst du seine Datei aus dem Ordner für eigene Quirks löschen und ZHA neu laden: xquirks bietet sie wieder an, sobald die Prüfung funktioniert. Betroffene Tuya-Dateien:\n\n{files}\n\nSieh nach, ob es ein Update von xquirks gibt. Wenn nicht, sieh in die [offenen Meldungen]({reports}): Wenn eine passt, reicht dort ein Daumen hoch oder ein Kommentar. Sonst melde es bitte im Issue-Tracker von xquirks und hänge die Diagnosedaten von xquirks an (Einstellungen > Geräte & Dienste > xquirks > Drei-Punkte-Menü > Diagnosedaten herunterladen)."
-    },
-    "self_check_fine": {
-      "title": "Quirk-Werte wirken plausibel: {quirk}",
-      "fix_flow": {
-        "step": {
-          "confirm": {
-            "title": "Quirk-Werte wirken plausibel",
-            "description": "{picture}xquirks hat `{file}` (Revision {revision}) einen Tag lang beobachtet, nachdem ZHA die Datei geladen hat oder das Gerät eine neue Firmware bekam. Werte der Datei kamen vom Gerät und nichts wirkte auffällig:\n\n{devices}\n\nBitte vergleiche die Werte mit dem Gerät selbst. Dein Gerätetest kann die Datei für alle mit diesem Gerät als geprüft markieren.",
-            "menu_options": {
-              "check": "Gerät jetzt prüfen",
-              "skip": "Nicht prüfen"
-            }
-          }
-        },
-        "abort": {
-          "not_loaded": "xquirks ist nicht geladen. Lade es neu und versuche es noch einmal.",
-          "zha_not_loaded": "ZHA ist nicht geladen. Versuche es noch einmal, sobald es läuft.",
-          "no_device": "Gerade verwendet keines der Geräte dieses Hinweises die Datei oder ZHA hat diese Geräte nicht. Versuche es später noch einmal.",
-          "device_gone": "Das Gerät verwendet diese Datei nicht mehr oder ZHA hat es gerade nicht.",
-          "check_failed": "Die Prüfung ist fehlgeschlagen. Das Home-Assistant-Protokoll nennt den Grund.",
-          "no_entities": "Die Datei fügt diesem Gerät keine Entität hinzu, die die Prüfung zeigen kann.",
-          "confirmed": "Nichts zu prüfen: Diese Datei ist jetzt geprüft oder genug Leute haben sie an Geräten wie deinen bestätigt. Der Hinweis ist weg.",
-          "skipped": "Erledigt. Dieser Hinweis kommt für diese Revision der Datei nicht wieder.",
-          "gone": "Nichts mehr zu tun: Dieser Hinweis wurde inzwischen geschlossen.",
-          "file_changed": "Nichts zu prüfen: Die Datei wurde aktualisiert oder entfernt, seit dieser Hinweis kam.",
-          "check_started": "Die Geräteprüfung öffnet sich in einem eigenen Dialog."
-        }
-      }
-    },
-    "self_check_off": {
-      "title": "Quirk-Werte wirken auffällig: {quirk}",
-      "fix_flow": {
-        "step": {
-          "confirm": {
-            "title": "Quirk-Werte wirken auffällig",
-            "description": "{picture}xquirks hat `{file}` (Revision {revision}) einen Tag lang beobachtet, nachdem ZHA die Datei geladen hat oder das Gerät eine neue Firmware bekam. Das wirkte auffällig:\n\n{devices}\n\nUm nur zu melden, was auffällig wirkte, sieh zuerst in die [offenen Meldungen]({reports}): Wenn eine passt, reicht dort ein Daumen hoch oder ein Kommentar. Sonst [melde es auf GitHub]({link}). Das Formular nennt die Datei und was auffällig wirkte, ohne Namen oder Adressen deiner Geräte. Hänge die Diagnosedaten des Geräts an.",
-            "menu_options": {
-              "check": "Gerät jetzt prüfen",
-              "skip": "Nicht prüfen"
-            }
-          }
-        },
-        "abort": {
-          "not_loaded": "xquirks ist nicht geladen. Lade es neu und versuche es noch einmal.",
-          "zha_not_loaded": "ZHA ist nicht geladen. Versuche es noch einmal, sobald es läuft.",
-          "no_device": "Gerade verwendet keines der Geräte dieses Hinweises die Datei oder ZHA hat diese Geräte nicht. Versuche es später noch einmal.",
-          "device_gone": "Das Gerät verwendet diese Datei nicht mehr oder ZHA hat es gerade nicht.",
-          "check_failed": "Die Prüfung ist fehlgeschlagen. Das Home-Assistant-Protokoll nennt den Grund.",
-          "no_entities": "Die Datei fügt diesem Gerät keine Entität hinzu, die die Prüfung zeigen kann.",
-          "confirmed": "Nichts zu prüfen: Diese Datei ist jetzt geprüft oder genug Leute haben sie an Geräten wie deinen bestätigt. Der Hinweis ist weg.",
-          "skipped": "Erledigt. Dieser Hinweis kommt für diese Revision der Datei nicht wieder.",
-          "gone": "Nichts mehr zu tun: Dieser Hinweis wurde inzwischen geschlossen.",
-          "file_changed": "Nichts zu prüfen: Die Datei wurde aktualisiert oder entfernt, seit dieser Hinweis kam.",
-          "check_started": "Die Geräteprüfung öffnet sich in einem eigenen Dialog."
-        }
-      }
-    },
-    "self_check_unproven": {
-      "title": "Noch keine Werte vom Gerät: {quirk}",
-      "fix_flow": {
-        "step": {
-          "confirm": {
-            "title": "Noch keine Werte vom Gerät",
-            "description": "{picture}xquirks hat `{file}` (Revision {revision}) einen Tag lang beobachtet, nachdem ZHA die Datei geladen hat oder das Gerät eine neue Firmware bekam. Keiner der Werte der Datei kam vom Gerät, deshalb kann xquirks nicht sagen, ob sie stimmen:\n\n{devices}\n\nDein Bericht hilft allen mit diesem Gerät.",
-            "menu_options": {
-              "check": "Gerät jetzt prüfen",
-              "skip": "Nicht prüfen"
-            }
-          }
-        },
-        "abort": {
-          "not_loaded": "xquirks ist nicht geladen. Lade es neu und versuche es noch einmal.",
-          "zha_not_loaded": "ZHA ist nicht geladen. Versuche es noch einmal, sobald es läuft.",
-          "no_device": "Gerade verwendet keines der Geräte dieses Hinweises die Datei oder ZHA hat diese Geräte nicht. Versuche es später noch einmal.",
-          "device_gone": "Das Gerät verwendet diese Datei nicht mehr oder ZHA hat es gerade nicht.",
-          "check_failed": "Die Prüfung ist fehlgeschlagen. Das Home-Assistant-Protokoll nennt den Grund.",
-          "no_entities": "Die Datei fügt diesem Gerät keine Entität hinzu, die die Prüfung zeigen kann.",
-          "confirmed": "Nichts zu prüfen: Diese Datei ist jetzt geprüft oder genug Leute haben sie an Geräten wie deinen bestätigt. Der Hinweis ist weg.",
-          "skipped": "Erledigt. Dieser Hinweis kommt für diese Revision der Datei nicht wieder.",
-          "gone": "Nichts mehr zu tun: Dieser Hinweis wurde inzwischen geschlossen.",
-          "file_changed": "Nichts zu prüfen: Die Datei wurde aktualisiert oder entfernt, seit dieser Hinweis kam.",
-          "check_started": "Die Geräteprüfung öffnet sich in einem eigenen Dialog."
+        "create_entry": {
+          "default": "Der Hinweis ist geschlossen, bis sich wieder eine Definition deiner Geräte ändert."
         }
       }
     }
   },
   "entity": {
     "button": {
-      "check_now": {
-        "name": "Nach Quirk-Updates suchen"
+      "report": {
+        "name": "Problem melden (xquirks)"
+      },
+      "works": {
+        "name": "Funktioniert bestätigen (xquirks)"
       }
+    }
+  },
+  "common": {
+    "report_title": "Problem melden: {definition}",
+    "report_found": "Schon gemeldet: [gib dort einen Daumen hoch]({link}).",
+    "report_new": "[Beschreibe das Problem im ausgefüllten Formular]({form}).",
+    "report_unknown": "Schon gemeldet? [Gib dort einen Daumen hoch]({search}). Sonst [beschreibe das Problem im ausgefüllten Formular]({form}).",
+    "works_title": "Funktioniert bestätigen: {definition}",
+    "works_found": "Schon bestätigt: [gib dort einen Daumen hoch]({link}).",
+    "works_new": "[Sende das ausgefüllte Formular ab]({form}).",
+    "works_unknown": "Schon bestätigt? [Gib dort einen Daumen hoch]({search}). Sonst [sende das ausgefüllte Formular ab]({form}).",
+    "notice_new": "{name}: neue Definition.",
+    "notice_high_risk": "{name}: braucht „[hohes Risiko]({options})“.",
+    "notice_own": "{name}: eigener Quirk.",
+    "notice_zha": "{name}: Quirk von ZHA.",
+    "notice_excluded": "{name}: ausgeschlossen.",
+    "notice_gone": "{name}: keine Definition mehr."
+  },
+  "exceptions": {
+    "no_definition": {
+      "message": "Dieses Gerät verwendet gerade keine xquirks-Definition."
     }
   }
 }

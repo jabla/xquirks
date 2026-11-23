@@ -35,35 +35,8 @@ jobs:
       # The finder tests run the page's modules in node, which the runner image ships (they fail
       # without it in CI).
       - run: python -m pytest tests_hacs -q
-
-  content:
-    name: The newest content tag reads with this integration
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.14"
-      - name: The newest content-<n> tag through this integration's parsers and guard
-        # A change to the integration must still read what users get today. Content built for
-        # another guard is only parsed: a release takes only content for its own guard.
-        run: |
-          git fetch -q --no-tags origin 'refs/tags/content-*:refs/tags/content-*'
-          tag=$(git for-each-ref --sort=-v:refname --count=1 --format='%(refname:strip=2)' 'refs/tags/content-*')
-          if [ -z "$tag" ]; then
-            echo "::notice::no content tag yet"
-            exit 0
-          fi
-          if ! [[ "$tag" =~ ^content-[1-9][0-9]*$ ]]; then
-            echo "::error::the newest content tag $tag is not content-<n>"
-            exit 1
-          fi
-          mkdir "$RUNNER_TEMP/content"
-          git archive "$tag" | tar -x -C "$RUNNER_TEMP/content"
-          python -I tools/check_content.py "$RUNNER_TEMP/content" --tag "$tag"
+      # The loader's own tests, without Home Assistant (tests_loader/pytest.ini).
+      - run: python -m pytest tests_loader -q
 
   hacs:
     name: HACS validation

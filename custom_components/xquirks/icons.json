@@ -1,0 +1,12 @@
+{
+  "entity": {
+    "button": {
+      "report": {
+        "default": "mdi:message-alert-outline"
+      },
+      "works": {
+        "default": "mdi:thumb-up-outline"
+      }
+    }
+  }
+}

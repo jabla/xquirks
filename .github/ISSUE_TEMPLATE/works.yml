@@ -1,0 +1,40 @@
+name: It works
+description: A device on an xquirks definition shows the right values.
+title: "<manufacturer> <model>: works"
+labels: [verify]
+body:
+  - type: markdown
+    attributes:
+      value: The button "Confirm it works (xquirks)" on the device's page fills in this form. Check the fields for anything you do not want to share.
+  - type: input
+    id: file
+    attributes:
+      label: Definition
+      placeholder: <vendor>_<model>
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Revision
+      placeholder: 1a2b3c4d
+    validations:
+      required: true
+  - type: input
+    id: ha
+    attributes:
+      label: Home Assistant version
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Versions and values in Home Assistant
+      description: The button fills this in. Without it, drop the device's diagnostics here (the device's page > three-dot menu > Download diagnostics).
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Optional. What you compared the values with, a setting you changed that stuck.

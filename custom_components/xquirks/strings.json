@@ -3,341 +3,117 @@
     "step": {
       "user": {
         "title": "xquirks",
-        "description": "Offers the quirk files that match your ZHA devices. Nothing is written until you confirm the change list in Repairs.\n\nZHA's custom quirks folder: `{folder}`"
+        "description": "xquirks adds device definitions to ZHA for Zigbee devices that ZHA does not fully support yet.\n\nSetup writes the start file `xquirks.py` and its options file `xquirks_options.json` into ZHA's custom quirks folder `{folder}`. From then on, the start file loads the definitions each time ZHA starts.\n\nWhere a quirk of yours or one of ZHA's own quirks matches a device, that quirk stays. Exception: a few definitions take over a quirk of ZHA to add what it lacks. They keep all of its entities.\n\nA reload of ZHA makes your Zigbee devices unavailable for a few seconds.",
+        "menu_options": {
+          "reload": "Set up and reload ZHA now",
+          "later": "Set up, ZHA loads the definitions at its next start"
+        }
       }
     },
     "abort": {
-      "single_instance_allowed": "Already configured. Only one entry is possible."
-    }
-  },
-  "config_subentries": {
-    "device_check": {
-      "initiate_flow": {
-        "user": "Check a device"
-      },
-      "entry_type": "Device check",
-      "step": {
-        "check": {
-          "title": "Which device",
-          "description": "Which device should xquirks ask for its current values? A Tuya device gets a data query, any other device a read of the values behind the quirk's entities. This changes nothing on the device. Wake a battery device first, for example with its button.\n\nThen you compare each value with the device's display, its app or what it does. The result is a report for a device test on GitHub. It names no address of the device, no room and none of the names you gave.",
-          "data": {
-            "device": "Device"
-          }
-        },
-        "ask": {
-          "title": "Ask the device"
-        },
-        "values": {
-          "title": "Compare with the device",
-          "description": "**{device}** with `{file}` (revision {revision}):\n\n{entities}\n\nCompare each value with the device's display, its app or what it does.",
-          "menu_options": {
-            "all_match": "All values match",
-            "mismatch": "Something does not match"
-          }
-        },
-        "values_no_answer": {
-          "title": "Compare with the device",
-          "description": "The device did not answer. The values below are what ZHA stored earlier. To ask it again, wake it, for example with its button. Then start the check again.\n\n**{device}** with `{file}` (revision {revision}):\n\n{entities}\n\nCompare each value with the device's display, its app or what it does.",
-          "menu_options": {
-            "all_match": "All values match",
-            "mismatch": "Something does not match"
-          }
-        },
-        "values_no_answer_mains": {
-          "title": "Compare with the device",
-          "description": "The device did not answer. The values below are what ZHA stored earlier. It cannot be reached right now. To ask it again, make sure it has power. Then start the check again.\n\n**{device}** with `{file}` (revision {revision}):\n\n{entities}\n\nCompare each value with the device's display, its app or what it does.",
-          "menu_options": {
-            "all_match": "All values match",
-            "mismatch": "Something does not match"
-          }
-        },
-        "results": {
-          "title": "Mark what does not match",
-          "description": "**{device}** with `{file}` (revision {revision}):\n\n{entities}\n\nMark the values that do not match the device. Values you found right go into the first list.",
-          "data": {
-            "matches": "Match the device",
-            "wrong": "Do not match the device"
-          }
-        },
-        "report": {
-          "title": "Report the device test",
-          "description": "Values that match the device: {matches}. Not compared: {unchecked}.\n\n**Report** opens the form on GitHub. It is filled in with the report. Check it and submit it.",
-          "submit": "Report"
-        },
-        "report_wrong": {
-          "title": "Report the wrong values",
-          "description": "Values that do not match the device: {wrong}. Matching: {matches}. Not compared: {unchecked}.\n\n**Report** opens the form on GitHub. It is filled in with the report. Describe what the device shows. Check the form and submit it.",
-          "submit": "Report"
-        },
-        "thumbs_up": {
-          "title": "Confirm the device test",
-          "description": "A device test of this device with the same firmware is on GitHub already. Give it a thumbs-up there: that counts as your confirmation (a GitHub account is needed). Confirmations so far: {count}. At {threshold}, the file can become verified for everyone.",
-          "submit": "Open the device test"
-        },
-        "open": {
-          "title": "Form on GitHub",
-          "description": "No new tab? **Open website** opens the form. If that fails, [open the form on GitHub]({link})."
-        },
-        "open_test": {
-          "title": "Device test on GitHub",
-          "description": "No new tab? **Open website** opens the device test. If that fails, [open it on GitHub]({link})."
-        }
-      },
-      "progress": {
-        "asking": "xquirks asks the device for its values. This takes half a minute at most."
-      },
-      "error": {
-        "both": "Mark each value in one of the two lists only.",
-        "nothing": "Mark at least one value."
-      },
-      "abort": {
-        "not_loaded": "xquirks is not loaded. Reload it and try again.",
-        "zha_not_loaded": "ZHA is not loaded. Try again once it runs.",
-        "no_device": "None of the devices this notice names runs the file right now or ZHA does not have them. Try again later.",
-        "device_gone": "The device no longer runs its xquirks file or ZHA does not have it right now.",
-        "check_failed": "The check failed. The Home Assistant log says why.",
-        "no_entities": "The file adds no entity to this device that the check can show.",
-        "gone": "Nothing to do any more: this notice was closed in the meantime.",
-        "file_changed": "Nothing to check: the file was updated or removed since this notice came.",
-        "nothing_to_check": "None of your devices runs a file from xquirks right now. A device xquirks leaves alone (disabled or chosen in the options) is not offered.",
-        "opened": "Thank you! The form is open in a new tab.",
-        "opened_test": "Thank you! The device test is open in a new tab. Give it a thumbs-up there."
-      }
+      "no_folder": "ZHA has no custom quirks folder yet.\n\n1. Create the folder, for example `/config/custom_zha_quirks` (with the File editor, Samba or SSH app). It has to exist before the next step.\n2. Add these lines to `configuration.yaml`:\n\n```yaml\nzha:\n  custom_quirks_path: /config/custom_zha_quirks/\n```\n\n3. Restart Home Assistant, then add xquirks again.",
+      "write_failed": "Could not write to ZHA's custom quirks folder: {error}"
     }
   },
   "options": {
     "step": {
-      "settings": {
-        "title": "What xquirks offers",
-        "description": "**Devices**: xquirks installs no file just for these devices. Files only they use go with the next change list. A file another device needs is installed or kept anyway: ZHA applies it to these devices too (the change list names them).\n\nDevices disabled in Home Assistant are left alone the same way.\n\n**Offer high-risk files**: xquirks holds back files for covers and thermostats, files that replace ZHA's own quirk and files with a known weak spot until they are verified on a device. Turn this on to get them in the change list anyway, marked with their risk.",
+      "init": {
+        "title": "xquirks options",
+        "description": "Changes apply the next time ZHA starts: right away with **Reload ZHA now**, otherwise at the next restart of Home Assistant.",
         "data": {
-          "excluded": "Devices",
-          "high_risk": "Offer high-risk files"
+          "excluded": "Devices xquirks leaves alone",
+          "high_risk": "Use high-risk definitions",
+          "reload": "Reload ZHA now"
+        },
+        "data_description": {
+          "excluded": "The list shows the devices on an xquirks definition and those you picked before. A device you pick runs ZHA's own quirk, a quirk of yours or none instead.",
+          "high_risk": "High-risk definitions wait until they are verified on a device: those for covers and thermostats and those with a known weak spot. Turn this on to use them anyway.",
+          "reload": "Your Zigbee devices are unavailable for a few seconds."
         }
       }
+    },
+    "abort": {
+      "no_folder": "ZHA has no custom quirks folder. Settings > System > Repairs says how to add one.",
+      "write_failed": "Could not write to ZHA's custom quirks folder: {error}",
+      "options_broken": "xquirks cannot use its options file: {error}\n\nFix the file or delete it, then open the options again. Without the file, no device is left alone and high-risk definitions stay off."
     }
   },
   "issues": {
     "missing_quirks_path": {
       "title": "ZHA has no custom quirks folder",
-      "description": "ZHA loads custom quirk files only from a folder named in configuration.yaml. Until there is one, xquirks offers nothing.\n\n1. Create the folder, for example `/config/custom_zha_quirks` (with the File editor, Samba or SSH app). It has to exist before the next step.\n2. Add these lines to `configuration.yaml`:\n\n```yaml\nzha:\n  custom_quirks_path: /config/custom_zha_quirks/\n```\n\n3. Restart Home Assistant."
+      "description": "ZHA loads custom quirks only from a folder named in `configuration.yaml`. Until there is one, xquirks loads no definitions.\n\n1. Create the folder, for example `/config/custom_zha_quirks` (with the File editor, Samba or SSH app). It has to exist before the next step.\n2. Add these lines to `configuration.yaml`:\n\n```yaml\nzha:\n  custom_quirks_path: /config/custom_zha_quirks/\n```\n\n3. Restart Home Assistant. A repair then offers to write the xquirks start file."
     },
-    "folder_unreadable": {
-      "title": "The custom quirks folder cannot be read",
-      "description": "xquirks cannot read ZHA's custom quirks folder `{folder}`: {error}\n\nUntil it can, xquirks writes nothing and leaves the change list and notices as they are. Check the folder's permissions."
+    "quirks_disabled": {
+      "title": "ZHA loads no quirks",
+      "description": "`enable_quirks: false` under `zha:` in `configuration.yaml` turns off every quirk: ZHA's own, yours and the xquirks definitions.\n\nRemove that line or set it to `true`, then restart Home Assistant."
     },
-    "no_content_state": {
-      "title": "xquirks has no quirk list yet",
-      "description": "xquirks has no list of quirk files it can use yet: {reason}\n\nIt tries again every 15 minutes. **Check for quirk updates** (Settings > Devices & services > xquirks) tries now."
-    },
-    "changes": {
-      "title": "Quirk changes for your Zigbee devices: {count}",
+    "stub": {
+      "title": "The xquirks start file is missing or out of date",
       "fix_flow": {
         "step": {
           "confirm": {
-            "title": "Quirk changes",
-            "description": "{changes}\n\n**Apply all** writes these changes to `{folder}` and reloads ZHA: your Zigbee devices are unavailable for a few seconds. If a step fails, xquirks tries to put back what it changed.\n\n**Not now** puts this list aside. A different list comes back as a new repair.",
-            "menu_options": {
-              "apply": "Apply all",
-              "not_now": "Not now"
-            }
+            "title": "Write the start file again",
+            "description": "The start file `xquirks.py` in ZHA's custom quirks folder `{folder}` loads the xquirks definitions each time ZHA starts. It is missing or differs from the one this version of xquirks writes.\n\n**Submit** writes it again and reloads ZHA. Your Zigbee devices are unavailable for a few seconds."
           }
         },
         "abort": {
-          "not_loaded": "xquirks is not loaded. Reload it and try again.",
-          "stale": "Nothing was changed: the list changed while this dialog was open. The new one is under Settings > System > Repairs.",
-          "held_pending": "Nothing was changed: an earlier change waits for ZHA to load the custom quirks folder again. Reload ZHA or wait for its next start.",
-          "held_unchecked": "Nothing was changed: a file of the list could not be downloaded and checked yet. xquirks tries again in a few minutes.",
-          "held_zha_unknown": "Nothing was changed: ZHA is not loaded or xquirks cannot read which quirks it applies. The list waits for ZHA.",
-          "held_no_content": "Nothing was changed: xquirks has no quirk list it can use right now.",
-          "held_no_folder": "Nothing was changed: ZHA has no custom quirks folder.",
-          "held_unreadable_folder": "Nothing was changed: the custom quirks folder cannot be read.",
-          "failed": "Nothing was changed: {failed}\n\nxquirks put back what it had changed before this step. Once the cause is gone, the repair lists what is left to do.",
-          "failed_partly": "Stopped at a failure: {failed}\n\nxquirks could not put these changes back:\n\n{left}\n\nZHA loads what is in `{folder}` now or at its next start. The next list sets the rest right.",
-          "done": "{done}\n\nZHA is reloading `{folder}` now: your Zigbee devices are back in a few seconds.\n\nxquirks watches the values of each installed or updated file for a day. A notice tells you if they look off. For a file that is not verified on a device yet, a notice may also ask you for a device test. To compare the values with the device yourself: Settings > Devices & services > xquirks > Check a device.",
-          "done_zha_not_loaded": "{done}\n\nZHA is not loaded right now. It uses the changes in `{folder}` when it starts.\n\nOnce ZHA runs, xquirks watches the values of each installed or updated file for a day. A notice tells you if they look off. For a file that is not verified on a device yet, a notice may also ask you for a device test.",
-          "not_now": "Put aside: nothing was changed. To decide later: Settings > System > Repairs > three-dot menu > Show ignored repairs. A different list comes back as a new repair."
+          "no_folder": "ZHA has no custom quirks folder. Settings > System > Repairs says how to add one.",
+          "write_failed": "Could not write to ZHA's custom quirks folder: {error}"
         }
       }
     },
-    "blocked": {
-      "title": "{quirk} runs on another custom quirk",
-      "description": "{picture}{devices}\n\nxquirks has `{file}` for it ({status}) but does not write it while a custom quirk of yours handles the device: ZHA would pick one of the two. To switch, remove your quirk file and reload ZHA. The change list then brings `{file}`."
+    "options_broken": {
+      "title": "The xquirks options file is broken",
+      "description": "xquirks cannot use its options file: {error}\n\nUntil it is fixed, ZHA loads the xquirks definitions without your options: also for the devices xquirks should leave alone, but without high-risk definitions.\n\nFix the file or delete it, then reload ZHA."
     },
-    "held_back": {
-      "title": "High-risk quirk held back: {quirk}",
+    "devices_changed": {
+      "title": "xquirks definitions of your devices changed",
       "fix_flow": {
         "step": {
           "confirm": {
-            "title": "High-risk quirk held back",
-            "description": "{picture}{devices}\n\nxquirks has `{file}` for it ({status}) but holds it back until it is verified on a device. {reasons}\n\n**Offer high-risk files** turns on that option (Settings > Devices & services > xquirks > Configure). It releases every high-risk file held back now:\n\n{files}\n\nThe change list then offers them and asks again before it installs anything. **Not now** puts this notice aside.",
-            "menu_options": {
-              "apply": "Offer high-risk files",
-              "not_now": "Not now"
-            }
+            "title": "xquirks definitions of your devices changed",
+            "description": "{devices}",
+            "submit": "OK"
           }
         },
         "abort": {
-          "not_loaded": "xquirks is not loaded. Reload it and try again.",
-          "stale": "Nothing was changed: the files held back changed while this dialog was open. A notice that still stands is under Settings > System > Repairs.",
-          "already_on": "Nothing was changed: **Offer high-risk files** is on already. The change list offers the files.",
-          "held": "Nothing was changed: xquirks cannot tell right now which files it holds back, for example while a change waits for ZHA to load the custom quirks folder. Open this notice again later.",
-          "done": "**Offer high-risk files** is on now. The change list under Settings > System > Repairs then offers the files. It asks before it installs anything. To turn the option off: Settings > Devices & services > xquirks > Configure.",
-          "not_now": "Put aside: nothing was changed. To decide later: Settings > System > Repairs > three-dot menu > Show ignored repairs."
-        }
-      }
-    },
-    "users_file": {
-      "title": "Your file has the name of a quirk: {quirk}",
-      "description": "{picture}`{file}` in `{folder}` has the name of an xquirks file, but xquirks did not write it. It leaves your file alone and cannot install its own.\n\nTo use the xquirks file, delete yours and reload ZHA. The change list then brings it."
-    },
-    "not_applied": {
-      "title": "ZHA does not use the quirk: {quirk}",
-      "description": "{picture}xquirks installed `{file}`, but ZHA does not apply it to these devices:\n\n{devices}\n\nA device on another custom quirk: that file wins. Remove one of the two. A device on no quirk: ZHA could not load the file. See the Home Assistant log."
-    },
-    "misfit": {
-      "title": "Quirk does not fit your device: {quirk}",
-      "description": "{picture}`{file}` does not fit the endpoints of these devices, so xquirks does not install it for them. A device that runs an older version keeps it until an update for other devices replaces it:\n\n{devices}\n\nEach link opens a prefilled report on GitHub with the device's endpoints and clusters, without its name or address. With it, a later version of the file can fit the device. Before you send one, look at the [open reports]({reports}): if one is for the same device, a thumbs-up or a comment there is enough."
-    },
-    "changed": {
-      "title": "Changed quirk left alone: {quirk}",
-      "description": "{picture}`{file}` in `{folder}` was changed after xquirks installed it. xquirks leaves it as it is: no change list updates or removes it.\n\nTo hand it back to xquirks, undo your change or delete the file."
-    },
-    "reload": {
-      "title": "Quirk changes wait for a ZHA reload: {count}",
-      "fix_flow": {
-        "step": {
-          "confirm": {
-            "title": "Reload ZHA",
-            "description": "Changed since ZHA last loaded `{folder}`:\n\n{changes}\n\nReload ZHA now? Your Zigbee devices are unavailable for a few seconds. A restart of Home Assistant does the same.",
-            "menu_options": {
-              "apply": "Reload ZHA",
-              "not_now": "Not now"
-            }
-          }
+          "not_loaded": "xquirks is not loaded right now. Open this notice again once it is."
         },
-        "abort": {
-          "not_loaded": "xquirks is not loaded. Reload it and try again.",
-          "nothing_to_do": "Nothing to do any more: the files or devices changed in the meantime.",
-          "failed": "Nothing was changed:\n\n{failed}",
-          "not_now": "Put aside: ZHA uses the changes when it next loads, at the latest after a restart of Home Assistant. To decide later: Settings > System > Repairs > three-dot menu > Show ignored repairs."
-        }
-      }
-    },
-    "withdrawn_copy": {
-      "title": "Withdrawn quirk copy: {quirk}",
-      "description": "{picture}`{file}` in `{folder}` has no record in xquirks: it was put there by hand or its record was lost. It is revision {revision}, which was withdrawn: {reason}\n\nZHA loads it for your devices. Remove it from the folder and reload ZHA. The change list then brings the current file if there is one for this Home Assistant release."
-    },
-    "withdrawn_installed": {
-      "title": "Withdrawn quirk revision in use: {quirk}",
-      "description": "{picture}`{file}` in `{folder}` is revision {revision}, which was withdrawn: {reason}\n\nZHA uses it for your devices until the change list updates or removes it. The list is in Settings > System > Repairs, an ignored one under Show ignored repairs."
-    },
-    "download_waiting": {
-      "title": "Quirk changes wait for a download",
-      "description": "xquirks could not download these files of the change list yet:\n\n{files}\n\nThe change list waits until it has checked them. xquirks tries again every 15 minutes."
-    },
-    "unavailable": {
-      "title": "Quirk file cannot be downloaded: {quirk}",
-      "description": "`{file}` cannot be used: {error}\n\nNo change list writes it. An installed copy stays at its revision while its devices use it and no other file takes one of them. Look at the [open reports]({reports}) first: if one fits, a thumbs-up or a comment there is enough. Otherwise please report it in the xquirks issue tracker with the xquirks diagnostics (Settings > Devices & services > xquirks > three-dot menu > Download diagnostics)."
-    },
-    "refused": {
-      "title": "Quirk file refused: {quirk}",
-      "description": "`{file}` (revision {revision}) holds code xquirks does not allow in a quirk file or targets devices it is not offered for. xquirks refused it: no change list writes it. An installed copy stays at its revision while its devices use it and no other file takes one of them. The change list says when it goes.\n\nThis should never happen. It can mean that someone tampered with the repository xquirks loads its quirk files from. Look at the [open reports]({reports}) first: if one fits, a thumbs-up or a comment there is enough. Otherwise please report it in the xquirks issue tracker with the xquirks diagnostics (Settings > Devices & services > xquirks > three-dot menu > Download diagnostics)."
-    },
-    "tuya_check": {
-      "title": "Tuya quirk files on hold: their type check fails",
-      "description": "The typed Tuya cluster of the Tuya quirk files failed its self-test on the zhaquirks version this Home Assistant runs: {reason}\n\nIt checks each datapoint value against the type of its attribute. Until it works again, xquirks installs and updates no Tuya file. Installed Tuya files stay as they are, but their devices may show no new values meanwhile. If a device stops updating, you can delete its file from the custom quirks folder and reload ZHA: xquirks offers it again once the check works. Affected Tuya files:\n\n{files}\n\nLook for an update of xquirks. If there is none, look at the [open reports]({reports}): if one fits, a thumbs-up or a comment there is enough. Otherwise please report it in the xquirks issue tracker with the xquirks diagnostics (Settings > Devices & services > xquirks > three-dot menu > Download diagnostics)."
-    },
-    "self_check_fine": {
-      "title": "Quirk values look plausible: {quirk}",
-      "fix_flow": {
-        "step": {
-          "confirm": {
-            "title": "Quirk values look plausible",
-            "description": "{picture}xquirks watched `{file}` (revision {revision}) for a day after ZHA loaded it or the device got new firmware. Values of the file came from the device and nothing looked off:\n\n{devices}\n\nPlease compare the values with the device itself. Your device test can make the file verified for everyone with this device.",
-            "menu_options": {
-              "check": "Check the device now",
-              "skip": "Do not check"
-            }
-          }
-        },
-        "abort": {
-          "not_loaded": "xquirks is not loaded. Reload it and try again.",
-          "zha_not_loaded": "ZHA is not loaded. Try again once it runs.",
-          "no_device": "None of the devices this notice names runs the file right now or ZHA does not have them. Try again later.",
-          "device_gone": "The device no longer runs this file or ZHA does not have it right now.",
-          "check_failed": "The check failed. The Home Assistant log says why.",
-          "no_entities": "The file adds no entity to this device that the check can show.",
-          "confirmed": "Nothing to check: this file is verified now or enough people confirmed it on devices like yours. The notice is gone.",
-          "skipped": "Done. This notice does not come back for this revision of the file.",
-          "gone": "Nothing to do any more: this notice was closed in the meantime.",
-          "file_changed": "Nothing to check: the file was updated or removed since this notice came.",
-          "check_started": "The device check opens in its own dialog."
-        }
-      }
-    },
-    "self_check_off": {
-      "title": "Quirk values look off: {quirk}",
-      "fix_flow": {
-        "step": {
-          "confirm": {
-            "title": "Quirk values look off",
-            "description": "{picture}xquirks watched `{file}` (revision {revision}) for a day after ZHA loaded it or the device got new firmware. This looked off:\n\n{devices}\n\nTo report only what looked off, look at the [open reports]({reports}) first: if one fits, a thumbs-up or a comment there is enough. Otherwise [report it on GitHub]({link}). The form names the file and what looked off, without names or addresses of your devices. Add the device's diagnostics.",
-            "menu_options": {
-              "check": "Check the device now",
-              "skip": "Do not check"
-            }
-          }
-        },
-        "abort": {
-          "not_loaded": "xquirks is not loaded. Reload it and try again.",
-          "zha_not_loaded": "ZHA is not loaded. Try again once it runs.",
-          "no_device": "None of the devices this notice names runs the file right now or ZHA does not have them. Try again later.",
-          "device_gone": "The device no longer runs this file or ZHA does not have it right now.",
-          "check_failed": "The check failed. The Home Assistant log says why.",
-          "no_entities": "The file adds no entity to this device that the check can show.",
-          "confirmed": "Nothing to check: this file is verified now or enough people confirmed it on devices like yours. The notice is gone.",
-          "skipped": "Done. This notice does not come back for this revision of the file.",
-          "gone": "Nothing to do any more: this notice was closed in the meantime.",
-          "file_changed": "Nothing to check: the file was updated or removed since this notice came.",
-          "check_started": "The device check opens in its own dialog."
-        }
-      }
-    },
-    "self_check_unproven": {
-      "title": "No values from the device yet: {quirk}",
-      "fix_flow": {
-        "step": {
-          "confirm": {
-            "title": "No values from the device yet",
-            "description": "{picture}xquirks watched `{file}` (revision {revision}) for a day after ZHA loaded it or the device got new firmware. None of the file's values came from the device, so xquirks cannot tell whether they are right:\n\n{devices}\n\nYour report helps everyone with this device.",
-            "menu_options": {
-              "check": "Check the device now",
-              "skip": "Do not check"
-            }
-          }
-        },
-        "abort": {
-          "not_loaded": "xquirks is not loaded. Reload it and try again.",
-          "zha_not_loaded": "ZHA is not loaded. Try again once it runs.",
-          "no_device": "None of the devices this notice names runs the file right now or ZHA does not have them. Try again later.",
-          "device_gone": "The device no longer runs this file or ZHA does not have it right now.",
-          "check_failed": "The check failed. The Home Assistant log says why.",
-          "no_entities": "The file adds no entity to this device that the check can show.",
-          "confirmed": "Nothing to check: this file is verified now or enough people confirmed it on devices like yours. The notice is gone.",
-          "skipped": "Done. This notice does not come back for this revision of the file.",
-          "gone": "Nothing to do any more: this notice was closed in the meantime.",
-          "file_changed": "Nothing to check: the file was updated or removed since this notice came.",
-          "check_started": "The device check opens in its own dialog."
+        "create_entry": {
+          "default": "The notice is closed until a definition of your devices changes again."
         }
       }
     }
   },
   "entity": {
     "button": {
-      "check_now": {
-        "name": "Check for quirk updates"
+      "report": {
+        "name": "Report a problem (xquirks)"
+      },
+      "works": {
+        "name": "Confirm it works (xquirks)"
       }
+    }
+  },
+  "common": {
+    "report_title": "Report a problem: {definition}",
+    "report_found": "Already reported: [give a thumbs-up there]({link}).",
+    "report_new": "[Describe the problem in the filled-in form]({form}).",
+    "report_unknown": "Already reported? [Give a thumbs-up there]({search}). Otherwise [describe the problem in the filled-in form]({form}).",
+    "works_title": "Confirm it works: {definition}",
+    "works_found": "Already confirmed: [give a thumbs-up there]({link}).",
+    "works_new": "[Submit the filled-in form]({form}).",
+    "works_unknown": "Already confirmed? [Give a thumbs-up there]({search}). Otherwise [submit the filled-in form]({form}).",
+    "notice_new": "{name}: new definition.",
+    "notice_high_risk": "{name}: needs “[high risk]({options})”.",
+    "notice_own": "{name}: custom quirk.",
+    "notice_zha": "{name}: ZHA's quirk.",
+    "notice_excluded": "{name}: excluded.",
+    "notice_gone": "{name}: no definition anymore."
+  },
+  "exceptions": {
+    "no_definition": {
+      "message": "This device runs no xquirks definition now."
     }
   }
 }
