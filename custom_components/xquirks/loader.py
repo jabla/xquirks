@@ -66,8 +66,7 @@ class DefinitionError(Exception):
     """A definition the loader refuses."""
 
 
-# The fixed helpers converters use, once for all definitions: the texts of fixed_code.json while today's files exist
-# (test_fixed_code_is_the_loaders).
+# The fixed helpers converters use, once for all definitions.
 
 
 def _be(data, start: int, width: int) -> int:
@@ -121,9 +120,8 @@ def _value_error_on_error(converter):
     return convert
 
 
-# The fixed behaviours of cluster classes, once for all definitions (their methods: fixed_code.json, as above). A
-# definition names the Tuya cluster class below as replacement_cluster and puts the Aqara mixins in front of
-# its cluster's bases ("behaviours").
+# The fixed behaviours of cluster classes, once for all definitions. A definition names the Tuya cluster class below as
+# replacement_cluster and puts the Aqara mixins in front of its cluster's bases ("behaviours").
 
 
 class TypedTuyaCluster(TuyaMCUCluster):
